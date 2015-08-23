@@ -1,12 +1,8 @@
 (function() {
-	var mapEl = document.getElementById('map');
-	var mapContext = mapEl.getContext('2d');
-	var w = 257;
 	var h = 257;
-	mapEl.width = w;
-	mapEl.height = h;
-	var height = new Float32Array(w * h);
-	var buff = new Float32Array(w * h);
+	var w = 257;
+	var height = new Float32Array(h * w);
+	
 	
 	var randn = (function() {
 		var buff = null;
@@ -64,8 +60,8 @@
 			arr[i] = fn(arr[i]);
 	};
 	
-	var display = function(raw) {
-		var mapPixels = mapContext.getImageData(0, 0, w, h);	
+	var display = function(raw, context) {
+		var mapPixels = context.getImageData(0, 0, w, h);	
 		normalize(raw)
 		for (var i = 0; i < w * h; i++) {
 			var normH = Math.floor(255 * raw[i]);
@@ -75,9 +71,17 @@
 			mapPixels.data[pos + 2] = normH;
 			mapPixels.data[pos + 3] = 255;
 		}
-		mapContext.putImageData(mapPixels, 0, 0);
+		context.putImageData(mapPixels, 0, 0);
 	};
-		
+	
+	var cutoff = function(raw, val) {
+		for (var i = 0; i < w * h; i++)
+			if (raw[i] < val)
+				raw[i] = val;
+		return raw;
+	}
+
+	
 	var raise = function(raw) {
 		var posx = Math.floor(w * Math.random());
 		var posy = Math.floor(h * Math.random());
@@ -91,14 +95,7 @@
 			}
 		}
 	};
-	
-	var cutoff = function(raw, val) {
-		for (var i = 0; i < w * h; i++)
-			if (raw[i] < val)
-				raw[i] = val;
-		return raw;
-	}
-	
+		
 	var hill = function(raw, rmin, rmax) {
 		var posx = Math.floor(w * Math.random());
 		var posy = Math.floor(h * Math.random());
@@ -148,8 +145,9 @@
 		}
 		return arr;
 	};
+
 	
-	window.gen = function(mode, count) {
+	var gen = function(mode, count, context) {
 		if (mode === 'fl')
 			for (var i = 0; i < count; i++)
 				raise(height, 3);
@@ -160,36 +158,27 @@
 			diamondsqr(height);
 		//cutoff(height, 0);
 		//map(height, function(x) { return x * x * x; });
-		display(height);
+		display(height, context);
 	};
 	
-	document.getElementById('run').addEventListener('click', function() {
-		gen(document.getElementById('mode').value, 2000);
+	window.gen = gen;
+}());
+
+(function() {
+	var modeEl = document.getElementById('mode');
+	var iterEl = document.getElementById('iter');
+	var runBtn = document.getElementById('run');
+	var mapEl = document.getElementById('map');
+	var mapContext = mapEl.getContext('2d');
+	var w = 257;
+	var h = 257;
+	mapEl.width = w;
+	mapEl.height = h;
+	
+	runBtn.addEventListener('click', function() {
+		gen(modeEl.value, parseInt(iterEl.value), mapContext);
 	});
-	
-	var stopFlag = false;
-	var decay = 1;
-	var tol = .1;
-	var animate = function animate() {
-		//randomize(height);
-		smooth(height, buff, w, h);
-		height.set(buff);
-		randomize(buff, function() {return Math.random() - .3; });
-		for (var i = 0; i < w * h; i++)
-			height[i] = height[i] + buff[i] * decay;
-		decay *= .99;
-		if (decay < tol)
-			stop();
-		plot(height);
-		if (!stopFlag)
-			window.requestAnimationFrame(animate);
-	};
-	
-	window.stop = function() {
-		stopFlag = true;
-	};
-	window.run = function() {
-		stopFlag = false;
-		animate();
-	};
+	modeEl.addEventListener('change', function() {
+		iterEl.disabled = (modeEl.value === 'ds');
+	});
 }());
