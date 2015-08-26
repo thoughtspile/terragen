@@ -195,6 +195,82 @@ var terragen = (function() {
 		}
 	};
 		
+	var worley = function(raw) {
+		var cellSize = 32;
+		var cellCount = Math.floor(w / cellSize);
+		var ptsPerCell = 1;
+		var cellPts = [];
+		for (var i = 0; i < cellCount; i++) {
+			cellPts[i] = [];
+			for (var j = 0; j < cellCount; j++) {
+				cellPts[i][j] = [];
+				for (var k = 0; k < ptsPerCell; k++) {
+					cellPts[i][j][k] = [
+						i * cellSize + Math.floor(Math.random() * cellSize), 
+						j * cellSize + Math.floor(Math.random() * cellSize)];
+				}
+			}
+		}
+		console.log(cellPts);
+		for (var x = 0; x < w; x++) {
+			for (var y = 0; y < h; y++) {
+				var cellX = Math.floor(x / cellSize);
+				var cellY = Math.floor(y / cellSize);
+				
+				var dists = [];
+				for (var offX = (cellX == 0? cellX: cellX - 1); offX <= cellX + 1 && offX < cellCount; offX++) {
+					for (var offY = (cellY == 0? cellY: cellY - 1); offY <= cellY + 1 && offY < cellCount; offY++) {
+						var cell = cellPts[offX][offY];
+						for (var i = 0; i < cell.length; i++) {
+							var dx = (x - cell[i][0]);
+							var dy = (y - cell[i][1]);
+							dists.push(dx * dx + dy * dy);
+						}
+					}
+				}
+				raw [x + y * w] = Math.min.apply(null, dists);
+			}
+		}
+	};
+	
+	var worleyFuckedupMetric = function(raw) {
+		var cellSize = 32;
+		var cellCount = Math.floor(w / cellSize);
+		var ptsPerCell = 1;
+		var cellPts = [];
+		for (var i = 0; i < cellCount; i++) {
+			cellPts[i] = [];
+			for (var j = 0; j < cellCount; j++) {
+				cellPts[i][j] = [];
+				for (var k = 0; k < ptsPerCell; k++) {
+					cellPts[i][j][k] = [
+						i * cellSize + Math.floor(Math.random() * cellSize), 
+						j * cellSize + Math.floor(Math.random() * cellSize)];
+				}
+			}
+		}
+		console.log(cellPts);
+		for (var x = 0; x < w; x++) {
+			for (var y = 0; y < h; y++) {
+				var cellX = Math.floor(x / cellSize);
+				var cellY = Math.floor(y / cellSize);
+				
+				for (var offX = (cellX == 0? cellX: cellX - 1); offX <= cellX + 1 && offX < cellCount; offX++) {
+					for (var offY = (cellY == 0? cellY: cellY - 1); offY <= cellY + 1 && offY < cellCount; offY++) {
+						var cell = cellPts[offX][offY];
+						for (var i = 0; i < cell.length; i++) {
+							var dx = (x - cell[i][0]);
+							var dy = (y - cell[i][1]);
+							var d = dx * dx + dy + dy;
+							if (raw[x + y * w] > d)
+								raw [x + y * w] = d;
+						}
+					}
+				}
+			}
+		}
+	};
+		
 	var improvedPerlin = function(raw) {
 		// opts: high, low, decay, ease
 		var gx = new Float32Array(raw.length);
@@ -324,6 +400,8 @@ var terragen = (function() {
 			perlin(height);
 		else if (mode === 'ipn')
 			improvedPerlin(height);
+		else if (mode === 'wn')
+			worley(height);
 		//cutoff(height, 0);
 		//map(height, function(x) { return x * x * x; });
 		display(height, context);
