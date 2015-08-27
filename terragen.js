@@ -145,6 +145,62 @@ var terragen = (function() {
 		}
 	};
 	
+	var perlin0 = function(raw) {
+		// opts: high, low, decay, ease
+		var grads = 100;
+		var gx = new Float32Array(grads);
+		var gy = new Float32Array(grads);
+		for (var i = 0; i < grads; i++) {
+			var dir = 2 * Math.PI * (Math.random());
+			gx[i] = Math.cos(dir);
+			gy[i] = Math.sin(dir);
+		}
+		var perms = Math.max(w, h);
+		var perm = new Float32Array(2 * perms);
+		for (var i = 0; i < perm.length; i++) {
+			perm[i] = Math.floor(perms * Math.random());
+		}
+		var permute = function(x, y) {
+			return perm[x + perm[y]] % grads;
+		}
+		
+		var fbm = function(x, y, step) {			
+			var srcX = (x % w) / step;
+			var srcY = (y % h) / step;
+			var x1 = Math.floor(srcX);
+			var y1 = Math.floor(srcY);
+			var dx = srcX - x1;
+			var dy = srcY - y1;
+			var x2 = (x1 + 1) % w;
+			var y2 = (y1 + 1) % h;
+								
+			var s = dx * gx[permute(x1, y1)] +
+				dy * gy[permute(x1, y1)];
+			var u = dx * gx[permute(x1, y2)] +
+				(dy - 1) * gy[permute(x1, y2)];
+			var t = (dx - 1) * gx[permute(x2, y1)] +
+				dy * gy[permute(x2, y1)];
+			var v = (dx - 1) * gx[permute(x2, y2)] +
+				(dy - 1) * gy[permute(x2, y2)];
+				
+			var easeX = dx * dx * (3 - 2 * dx);
+			var easeY = dy * dy * (3 - 2 * dy);
+			var a = s + easeX * (t - s);
+			var b = u + easeX * (v - u);
+			return (a + easeY * (b - a)) * step / 64;
+		}
+		
+		for (var step = 256; step >= 1; step /= 2) {
+			for (var x = 0; x < w; x++) {
+				for (var y = 0; y < h; y++) {
+					//var qx = Math.floor(128 * fbm(x, y, step));
+					//var qy = Math.floor(128 * fbm(x + 4, y + 3, step));
+					raw[x + y * w] += fbm(x , y, step);
+				}
+			}
+		}
+	};
+	
 	var perlin = function(raw) {
 		// opts: high, low, decay, ease
 		var grads = 100;
@@ -164,154 +220,95 @@ var terragen = (function() {
 			return perm[x + perm[y]] % grads;
 		}
 		
-		for (var step = 256; step >= 1; step /= 2) {
+		var fbm = function(x, y, step) {			
+			var srcX = (x % w) / step;
+			var srcY = (y % h) / step;
+			var x1 = Math.floor(srcX);
+			var y1 = Math.floor(srcY);
+			var dx = srcX - x1;
+			var dy = srcY - y1;
+			var x2 = (x1 + 1) % w;
+			var y2 = (y1 + 1) % h;
+								
+			var s = dx * gx[permute(x1, y1)] +
+				dy * gy[permute(x1, y1)];
+			var u = dx * gx[permute(x1, y2)] +
+				(dy - 1) * gy[permute(x1, y2)];
+			var t = (dx - 1) * gx[permute(x2, y1)] +
+				dy * gy[permute(x2, y1)];
+			var v = (dx - 1) * gx[permute(x2, y2)] +
+				(dy - 1) * gy[permute(x2, y2)];
+				
+			var easeX = dx * dx * (3 - 2 * dx);
+			var easeY = dy * dy * (3 - 2 * dy);
+			var a = s + easeX * (t - s);
+			var b = u + easeX * (v - u);
+			return (a + easeY * (b - a)) * step / 64;
+		}
+		
+		for (var step = 64; step >= 64; step /= 2) {
 			for (var x = 0; x < w; x++) {
 				for (var y = 0; y < h; y++) {
-					var srcX = x / step;
-					var srcY = y / step;
-					var x1 = Math.floor(srcX);
-					var y1 = Math.floor(srcY);
-					var dx = srcX - x1;
-					var dy = srcY - y1;
-					var x2 = (x1 + 1) % w;
-					var y2 = (y1 + 1) % h;
-										
-					var s = dx * gx[permute(x1, y1)] +
-						dy * gy[permute(x1, y1)];
-					var u = dx * gx[permute(x1, y2)] +
-						(dy - 1) * gy[permute(x1, y2)];
-					var t = (dx - 1) * gx[permute(x2, y1)] +
-						dy * gy[permute(x2, y1)];
-					var v = (dx - 1) * gx[permute(x2, y2)] +
-						(dy - 1) * gy[permute(x2, y2)];
-						
-					var easeX = dx * dx * (3 - 2 * dx);
-					var easeY = dy * dy * (3 - 2 * dy);
-					var a = s + easeX * (t - s);
-					var b = u + easeX * (v - u);
-					raw[x + y * w] += (a + easeY * (b - a)) * step / 64;
+					var qx = Math.floor(128 * fbm(x, y, step));
+					var qy = Math.floor(128 * fbm((x + 4) % w, (y + 3) % h, step));
+					//console.log(x / 2 + qx);
+					raw[x + y * w] += fbm(x / 2 + qx, y / 2 + qy, step);
 				}
 			}
 		}
 	};
+	
+	// ridged perlin
 		
 	var worley = function(raw) {
 		var cellSize = 32;
 		var cellCount = Math.floor(w / cellSize);
-		var ptsPerCell = 1;
-		var cellPts = [];
-		for (var i = 0; i < cellCount; i++) {
-			cellPts[i] = [];
-			for (var j = 0; j < cellCount; j++) {
-				cellPts[i][j] = [];
-				for (var k = 0; k < ptsPerCell; k++) {
-					cellPts[i][j][k] = [
-						i * cellSize + Math.floor(Math.random() * cellSize), 
-						j * cellSize + Math.floor(Math.random() * cellSize)];
-				}
-			}
+		
+		var poss = 100;
+		var px = new Float32Array(poss);
+		var py = new Float32Array(poss);
+		for (var i = 0; i < poss; i++) {
+			px[i] = Math.floor(Math.random() * cellSize);
+			py[i] = Math.floor(Math.random() * cellSize);
+		}		
+		var perms = Math.max(w, h);
+		var perm = new Float32Array(2 * perms);
+		for (var i = 0; i < perm.length; i++) {
+			perm[i] = Math.floor(perms * Math.random());
 		}
-		console.log(cellPts);
+		var permute = function(x, y) {
+			return perm[x + perm[y]] % poss;
+		}
+		var ptsPerCell = 1;
+		var getCellPos = function(cx, cy, out) {
+			out[0] = cx * cellSize + px[permute(cx, cy)];
+			out[1] = cy * cellSize + px[permute(cx, cy)];
+		}
+		var dists = [];
+		var buff = new Float32Array(2);
+		// play with point distribution
 		for (var x = 0; x < w; x++) {
 			for (var y = 0; y < h; y++) {
 				var cellX = Math.floor(x / cellSize);
 				var cellY = Math.floor(y / cellSize);
 				
-				var dists = [];
+				dists.length = 0;
 				for (var offX = (cellX == 0? cellX: cellX - 1); offX <= cellX + 1 && offX < cellCount; offX++) {
 					for (var offY = (cellY == 0? cellY: cellY - 1); offY <= cellY + 1 && offY < cellCount; offY++) {
-						var cell = cellPts[offX][offY];
-						for (var i = 0; i < cell.length; i++) {
-							var dx = (x - cell[i][0]);
-							var dy = (y - cell[i][1]);
+						getCellPos(offX, offY, buff);
+						//for (var i = 0; i < cell.length; i++) {
+							var dx = (x - buff[0]);
+							var dy = (y - buff[1]);
+							//console.log(cellX, cellY, buff)
 							dists.push(dx * dx + dy * dy);
-						}
+						//}
 					}
 				}
-				raw [x + y * w] = Math.min.apply(null, dists);
-			}
-		}
-	};
-	
-	var worleyFuckedupMetric = function(raw) {
-		var cellSize = 32;
-		var cellCount = Math.floor(w / cellSize);
-		var ptsPerCell = 1;
-		var cellPts = [];
-		for (var i = 0; i < cellCount; i++) {
-			cellPts[i] = [];
-			for (var j = 0; j < cellCount; j++) {
-				cellPts[i][j] = [];
-				for (var k = 0; k < ptsPerCell; k++) {
-					cellPts[i][j][k] = [
-						i * cellSize + Math.floor(Math.random() * cellSize), 
-						j * cellSize + Math.floor(Math.random() * cellSize)];
-				}
-			}
-		}
-		console.log(cellPts);
-		for (var x = 0; x < w; x++) {
-			for (var y = 0; y < h; y++) {
-				var cellX = Math.floor(x / cellSize);
-				var cellY = Math.floor(y / cellSize);
-				
-				for (var offX = (cellX == 0? cellX: cellX - 1); offX <= cellX + 1 && offX < cellCount; offX++) {
-					for (var offY = (cellY == 0? cellY: cellY - 1); offY <= cellY + 1 && offY < cellCount; offY++) {
-						var cell = cellPts[offX][offY];
-						for (var i = 0; i < cell.length; i++) {
-							var dx = (x - cell[i][0]);
-							var dy = (y - cell[i][1]);
-							var d = dx * dx + dy + dy;
-							if (raw[x + y * w] > d)
-								raw [x + y * w] = d;
-						}
-					}
-				}
+				raw [x + y * w] = dists.sort(function(a, b) { return a >= b; })[0];
 			}
 		}
 	};
 		
-	var improvedPerlin = function(raw) {
-		// opts: high, low, decay, ease
-		var gx = new Float32Array(raw.length);
-		var gy = new Float32Array(raw.length);
-		for (var i = 0; i < raw.length; i++) {
-			var dir = 2 * Math.PI * (Math.random());
-			gx[i] = Math.cos(dir);
-			gy[i] = Math.sin(dir);	
-		}
-		for (var step = 256; step >= 1; step /= 2) {
-			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {
-					var srcX = x / step;
-					var srcY = y / step;
-					var x1 = Math.floor(srcX);
-					var y1 = Math.floor(srcY);
-					var dx = srcX - x1;
-					var dy = srcY - y1;
-					var x2 = (x1 + 1) % w;
-					var y2 = (y1 + 1) % h;
-					
-					
-					var s = dx * gx[x1 + y1 * w] +
-						dy * gy[x1 + y1 * w];
-					var u = dx * gx[x1 + y2 * w] +
-						(dy - 1) * gy[x1 + y2 * w];
-					var t = (dx - 1) * gx[x2 + y1 * w] +
-						dy * gy[x2 + y1 * w];
-					var v = (dx - 1) * gx[x2 + y2 * w] +
-						(dy - 1) * gy[x2 + y2 * w];
-						
-					var easeX = dx * dx * (3 - 2 * dx);
-					var easeY = dy * dy * (3 - 2 * dy);
-					var a = s + easeX * (t - s);
-					var b = u + easeX * (v - u);
-					raw[x + y * w] += (a + easeY * (b - a)) * step / 64;
-				}
-			}
-		}
-	};
-	
 	var raise = function(raw) {
 		// opts: offset dist
 		var posx = Math.floor(w * Math.random());
@@ -397,9 +394,9 @@ var terragen = (function() {
 		else if (mode === 'on')
 			octaveNoise(height);
 		else if (mode === 'pn')
+			perlin0(height);
+		else if (mode === 'wpn')
 			perlin(height);
-		else if (mode === 'ipn')
-			improvedPerlin(height);
 		else if (mode === 'wn')
 			worley(height);
 		//cutoff(height, 0);
