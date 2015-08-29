@@ -2,6 +2,7 @@ var terragen = (function() {
 	var h = 513;
 	var w = 513;
 	var height = new Float32Array(h * w);
+	var buff = new Float32Array(h * w);
 	
 	
 	var randn = (function() {
@@ -76,183 +77,123 @@ var terragen = (function() {
 	};
 	
 	
+	var frac = function (x) {
+		return x - Math.floor(x);
+	};
+	
+	var ease = {
+		linear: function (x) { return x; },
+		cubic: function (x) { return x * x * (3 - 2 * x); }
+	};
+	
+	var lerp = function (start, end, amt) {
+		return start + amt * (end - start);
+	};
+	
+	var dot2 = function (a1, a2, b1, b2) {
+		return a1 * b1 + a2 * b2;
+	}
+	
+	var white = function(arr) {
+		for (var i = 0; i < arr.length; i++) {
+			arr[i] = Math.random();
+		}
+		return arr;
+	};
+	
+	var makeFBM = function() {
+		var grads = 100;
+		var gx = new Float32Array(grads);
+		var gy = new Float32Array(grads);
+		for (var i = 0; i < grads; i++) {
+			var dir = 2 * Math.PI * (Math.random());
+			gx[i] = Math.cos(dir);
+			gy[i] = Math.sin(dir);
+		}
+		var perms = Math.max(w, h);
+		var perm = new Float32Array(2 * perms);
+		for (var i = 0; i < perm.length; i++) {
+			perm[i] = Math.floor(perms * Math.random());
+		}
+		var permute = function(x, y) {
+			return perm[x + perm[y]] % grads;
+		}
+		
+		return function(srcX, srcY, step) {
+			var x1 = Math.floor(srcX);
+			var y1 = Math.floor(srcY);
+			var dx = srcX - x1;
+			var dy = srcY - y1;
+			var x2 = (x1 === w - 1? 0: x1 + 1);
+			var y2 = (y1 === h - 1? 0: y1 + 1);
+
+			var i11 = permute(x1, y1);
+			var i12 = permute(x1, y2);
+			var i21 = permute(x2, y1);
+			var i22 = permute(x2, y2);
+			
+			var s = dot2(dx, dy, gx[i11], gy[i11]);
+			var u = dot2(dx, dy - 1, gx[i12], gy[i12]);
+			var t = dot2(dx - 1, dy, gx[i21], gy[i21]);
+			var v = dot2(dx - 1, dy - 1, gx[i22], gy[i22]);
+				
+			var easeX = ease.cubic(dx);
+			var easeY = ease.cubic(dy);
+			return lerp(lerp(s, t, easeX), lerp(u, v, easeX), easeY);
+		}
+	};
+	
+	
+	var smoothNoise = function (srcX, srcY) {
+		var fracX = ease.cubic(frac(srcX));
+		var fracY = ease.cubic(frac(srcY));
+		var x1 = Math.floor(srcX);
+		var y1 = Math.floor(srcY);
+		var x2 = (x1 + w - 1) % w;
+		var y2 = (y1 + h - 1) % h;
+		
+		return lerp(
+			lerp(buff[x2 + y2 * w], buff[x1 + y2 * w], fracX),
+			lerp(buff[x2 + y1 * w], buff[x1 + y1 * w], fracX),
+			fracY
+		);
+	};
+	
 	var octaveNoise = function(raw) {
-		// opts: high, low, decay, ease
-		var buff = new Float32Array(raw.length);
-		for (var i = 0; i < buff.length; i++) {
-			buff[i] = Math.random();
-		}
-		for (var step = 256; step >= 1; step /= 2) {
+		console.time('s');
+		white(buff);
+		for (var step = 256, amp = 1; step >= 1; step /= 2, amp /= 2) {
 			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {
-					var srcX = x / step;
-					var srcY = y / step;
-					var fracX = srcX - Math.floor(srcX);
-					fracX = fracX * fracX * (3 - 2 * fracX);
-					var fracY = srcY - Math.floor(srcY);
-					fracY = fracY * fracY * (3 - 2 * fracY);
-					var x1 = (Math.floor(srcX) + w) % w;
-					var y1 = (Math.floor(srcY) + h) % h;
-					var x2 = (x1 + w - 1) % w;
-					var y2 = (y1 + h - 1) % h;
-					
-					raw[x + y * w] += 
-						(fracX * fracY * buff[x1 + y1 * w] +
-						fracX * (1 - fracY) * buff[x1 + y2 * w] +
-						(1 - fracX) * fracY * buff[x2 + y1 * w] +
-						(1 - fracX) * (1 - fracY) * buff[x2 + y2 * w]) * step / 64;
+				for (var y = 0; y < h; y++) {					
+					raw[x + y * w] += smoothNoise(x / step, y / step) * amp;
 				}
 			}
 		}
+		console.timeEnd('s');
 	};
-	
-	var funNonperlin = function(raw) {
-		// opts: high, low, decay, ease
-		var gx = new Float32Array(raw.length);
-		var gy = new Float32Array(raw.length);
-		for (var i = 0; i < raw.length; i++) {
-			gx[i] = Math.random();
-			gy[i] = Math.random();
-		}
-		for (var step = 8; step >= 8; step /= 2) {
-			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {
-					var srcX = x / step;
-					var srcY = y / step;
-					var fracX = srcX - Math.floor(srcX);
-					var fracY = srcY - Math.floor(srcY);
-					var x1 = Math.floor(srcX);
-					var y1 = Math.floor(srcY);
-					var x2 = (x1 + 1) % w;
-					var y2 = (y1 + 1) % h;
-					
-					var s = fracX * gx[x1 + y1 * w] +
-						fracY * gy[x1 + y1 * w];
-					var u = fracX * gx[x1 + y2 * w] +
-						(1 - fracY) * gy[x1 + y2 * w];
-					var t = (1 - fracX) * gx[x2 + y1 * w] +
-						fracY * gy[x2 + y1 * w];
-					var v = (1 - fracX) * gx[x2 + y2 * w] +
-						(1 - fracY) * gy[x2 + y2 * w];
-						
-					var easeX = fracX * fracX * (3 - 2 * fracX);
-					var easeY = fracY * fracY * (3 - 2 * fracY);
-					var a = s + easeX * (t - s);
-					var b = u + easeX * (v - u);
-					raw[x + y * w] += a + easeY * (b - a);
-				}
-			}
-		}
-	};
-	
-	var perlin0 = function(raw) {
-		// opts: high, low, decay, ease
-		var grads = 100;
-		var gx = new Float32Array(grads);
-		var gy = new Float32Array(grads);
-		for (var i = 0; i < grads; i++) {
-			var dir = 2 * Math.PI * (Math.random());
-			gx[i] = Math.cos(dir);
-			gy[i] = Math.sin(dir);
-		}
-		var perms = Math.max(w, h);
-		var perm = new Float32Array(2 * perms);
-		for (var i = 0; i < perm.length; i++) {
-			perm[i] = Math.floor(perms * Math.random());
-		}
-		var permute = function(x, y) {
-			return perm[x + perm[y]] % grads;
-		}
 		
-		var fbm = function(x, y, step) {			
-			var srcX = (x % w) / step;
-			var srcY = (y % h) / step;
-			var x1 = Math.floor(srcX);
-			var y1 = Math.floor(srcY);
-			var dx = srcX - x1;
-			var dy = srcY - y1;
-			var x2 = (x1 + 1) % w;
-			var y2 = (y1 + 1) % h;
-								
-			var s = dx * gx[permute(x1, y1)] +
-				dy * gy[permute(x1, y1)];
-			var u = dx * gx[permute(x1, y2)] +
-				(dy - 1) * gy[permute(x1, y2)];
-			var t = (dx - 1) * gx[permute(x2, y1)] +
-				dy * gy[permute(x2, y1)];
-			var v = (dx - 1) * gx[permute(x2, y2)] +
-				(dy - 1) * gy[permute(x2, y2)];
-				
-			var easeX = dx * dx * (3 - 2 * dx);
-			var easeY = dy * dy * (3 - 2 * dy);
-			var a = s + easeX * (t - s);
-			var b = u + easeX * (v - u);
-			return (a + easeY * (b - a)) * step / 64;
-		}
-		
-		for (var step = 256; step >= 1; step /= 2) {
-			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {
-					//var qx = Math.floor(128 * fbm(x, y, step));
-					//var qy = Math.floor(128 * fbm(x + 4, y + 3, step));
-					raw[x + y * w] += fbm(x , y, step);
-				}
-			}
-		}
-	};
-	
 	var perlin = function(raw) {
+		console.time('p');
 		// opts: high, low, decay, ease
-		var grads = 100;
-		var gx = new Float32Array(grads);
-		var gy = new Float32Array(grads);
-		for (var i = 0; i < grads; i++) {
-			var dir = 2 * Math.PI * (Math.random());
-			gx[i] = Math.cos(dir);
-			gy[i] = Math.sin(dir);
-		}
-		var perms = Math.max(w, h);
-		var perm = new Float32Array(2 * perms);
-		for (var i = 0; i < perm.length; i++) {
-			perm[i] = Math.floor(perms * Math.random());
-		}
-		var permute = function(x, y) {
-			return perm[x + perm[y]] % grads;
-		}
-		
-		var fbm = function(x, y, step) {			
-			var srcX = (x % w) / step;
-			var srcY = (y % h) / step;
-			var x1 = Math.floor(srcX);
-			var y1 = Math.floor(srcY);
-			var dx = srcX - x1;
-			var dy = srcY - y1;
-			var x2 = (x1 + 1) % w;
-			var y2 = (y1 + 1) % h;
-								
-			var s = dx * gx[permute(x1, y1)] +
-				dy * gy[permute(x1, y1)];
-			var u = dx * gx[permute(x1, y2)] +
-				(dy - 1) * gy[permute(x1, y2)];
-			var t = (dx - 1) * gx[permute(x2, y1)] +
-				dy * gy[permute(x2, y1)];
-			var v = (dx - 1) * gx[permute(x2, y2)] +
-				(dy - 1) * gy[permute(x2, y2)];
-				
-			var easeX = dx * dx * (3 - 2 * dx);
-			var easeY = dy * dy * (3 - 2 * dy);
-			var a = s + easeX * (t - s);
-			var b = u + easeX * (v - u);
-			return (a + easeY * (b - a)) * step / 64;
-		}
-		
-		for (var step = 64; step >= 64; step /= 2) {
+		var fbm = makeFBM();		
+		for (var step = 256; step >= 1; step /= 2) {
 			for (var x = 0; x < w; x++) {
 				for (var y = 0; y < h; y++) {
-					var qx = Math.floor(128 * fbm(x, y, step));
-					var qy = Math.floor(128 * fbm((x + 4) % w, (y + 3) % h, step));
-					//console.log(x / 2 + qx);
-					raw[x + y * w] += fbm(x / 2 + qx, y / 2 + qy, step);
+					raw[x + y * w] += fbm(x / step, y / step, step) * step / 64;
+				}
+			}
+		}
+		console.timeEnd('p');
+	};
+	
+	var warpedPerlin = function(raw) {
+		var fbm = makeFBM();		
+		for (var step = 128; step >= 16; step /= 2) {
+			for (var x = 0; x < w; x++) {
+				for (var y = 0; y < h; y++) {
+					var qx = fbm(x / step, y / step, step);
+					var qy = fbm((x + 4) / step, (y + 3) / step, step);
+					raw[x + y * w] += fbm(x / step + qx, y / step + qy, step) * step / 64;
 				}
 			}
 		}
@@ -394,9 +335,9 @@ var terragen = (function() {
 		else if (mode === 'on')
 			octaveNoise(height);
 		else if (mode === 'pn')
-			perlin0(height);
-		else if (mode === 'wpn')
 			perlin(height);
+		else if (mode === 'wpn')
+			warpedPerlin(height);
 		else if (mode === 'wn')
 			worley(height);
 		//cutoff(height, 0);
