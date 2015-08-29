@@ -119,7 +119,7 @@ var terragen = (function() {
 			return perm[x + perm[y]] % grads;
 		}
 		
-		return function(srcX, srcY, step) {
+		var bm = function(srcX, srcY) {
 			var x1 = Math.floor(srcX);
 			var y1 = Math.floor(srcY);
 			var dx = srcX - x1;
@@ -140,6 +140,16 @@ var terragen = (function() {
 			var easeX = ease.cubic(dx);
 			var easeY = ease.cubic(dy);
 			return lerp(lerp(s, t, easeX), lerp(u, v, easeX), easeY);
+		}
+		
+		return function(x, y) {
+			var x = (x + w) % w;
+			var y = (y + h) % h;
+			var res = 0;
+			for (var step = 256; step >= 1; step /= 2) {
+				res += bm(x / step, y / step, step) * step / 64;
+			}
+			return res;
 		}
 	};
 	
@@ -175,28 +185,25 @@ var terragen = (function() {
 	var perlin = function(raw) {
 		console.time('p');
 		// opts: high, low, decay, ease
-		var fbm = makeFBM();		
-		for (var step = 256; step >= 1; step /= 2) {
-			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {
-					raw[x + y * w] += fbm(x / step, y / step, step) * step / 64;
-				}
+		var fbm = makeFBM();
+		for (var x = 0; x < w; x++) {
+			for (var y = 0; y < h; y++) {
+				raw[x + y * w] = fbm(x, y);
 			}
 		}
 		console.timeEnd('p');
 	};
 	
 	var warpedPerlin = function(raw) {
-		var fbm = makeFBM();		
-		for (var step = 128; step >= 16; step /= 2) {
-			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {
-					var qx = fbm(x / step, y / step, step);
-					var qy = fbm((x + 4) / step, (y + 3) / step, step);
-					raw[x + y * w] += fbm(x / step + qx, y / step + qy, step) * step / 64;
-				}
+		var fbm = makeFBM();
+		for (var x = 0; x < w; x++) {
+			for (var y = 0; y < h; y++) {
+				var qx = 70 * fbm(x, y);
+				var qy = 70 * fbm(x + 4, y + 3);
+				raw[x + y * w] = fbm(x + qx, y + qy);
 			}
 		}
+		// per-octave warping was nice too
 	};
 	
 	// ridged perlin
@@ -240,7 +247,6 @@ var terragen = (function() {
 						//for (var i = 0; i < cell.length; i++) {
 							var dx = (x - buff[0]);
 							var dy = (y - buff[1]);
-							//console.log(cellX, cellY, buff)
 							dists.push(dx * dx + dy * dy);
 						//}
 					}
@@ -258,9 +264,9 @@ var terragen = (function() {
 		var offset = Math.random() - .5;
 		
 		for (var i = 0; i < w; i++) {
-			for (var j = 0; j < h; j++) {
-				if (ang * (i - posx) <= j - posy)
-					raw[i + j * w] += offset;
+			var start = Math.floor(Math.max(0, posy + ang * (i - posx)));
+			for (var j = start; j < h; j++) {
+				raw[i + j * w] += offset;
 			}
 		}
 	};
