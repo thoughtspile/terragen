@@ -1,33 +1,38 @@
 var terragen = (function() {
-	var h = 513;
-	var w = 513;
-	var height = new Float32Array(h * w);
+	var h = 0;
+	var w = 0;
+	var height = new Float32Array(0);
 	height.h = h;
 	height.w = w;
-	var buff = new Float32Array(h * w);
+	var context = null;	
+	var smoothNoise = null;
+	var fbm = null;
+	var seed = 0;
 	
 	
 	// array utils
 	
 	var map = function(arr, fn) {
-		for (var i = 0; i < arr.length; i++)
+		for (var i = 0; i < arr.length; i++) {
 			arr[i] = fn(arr[i], i);
+		}
 		return arr;
 	};
 	
 	var map2 = function(mat, fn) {
-		for (var x = 0; x < mat.w; x++) {
-			for (var y = 0; y < mat.h; y++) {
-				mat[x + y * w] = fn(mat[x + y * w], x, y);
+		for (var y = 0, pos = 0; y < mat.h; y++) {
+			for (var x = 0; x < mat.w; x++, pos++) {
+				mat[pos] = fn(mat[pos], x, y);
 			}
 		}
 		return mat;
 	};
 	
-	var fill = function(raw, val) {
-		for (var i = 0; i < raw.length; i++) {
-			raw[i] = val;
-		}		
+	var fill = function(arr, val) {
+		for (var i = 0; i < arr.length; i++) {
+			arr[i] = val;
+		}
+		return arr;
 	};	
 	
 	var range = function(arr) {
@@ -50,10 +55,9 @@ var terragen = (function() {
 		return arr;
 	}
 	
-	
 	var display = function(raw, context) {
 		var mapPixels = context.getImageData(0, 0, w, h);	
-		normalize(raw)
+		normalize(raw);
 		for (var i = 0; i < w * h; i++) {
 			var normH = Math.floor(255 * raw[i]);
 			var pos = 4 * i;
@@ -91,6 +95,16 @@ var terragen = (function() {
 	var dot2 = function (a1, a2, b1, b2) {
 		return a1 * b1 + a2 * b2;
 	}
+	
+	var octavize = function(fn) {
+		return function(x, y) {
+			var res = 0;
+			for (var step = 256, amp = 1; step >= 1; step /= 2, amp /= 2) {
+				res += fn(x / step, y / step) * amp;
+			}
+			return res;
+		}
+	};
 	
 	
 	// Noise utils
@@ -147,80 +161,62 @@ var terragen = (function() {
 			return lerp(lerp(s, t, easeX), lerp(u, v, easeX), easeY);
 		}
 		
+		var octBM = octavize(bm);
+		
 		return function(x, y) {
 			var x = (x + w) % w;
 			var y = (y + h) % h;
-			var res = 0;
-			for (var step = 256; step >= 1; step /= 2) {
-				res += bm(x / step, y / step, step) * step / 64;
-			}
-			return res;
+			return octBM(x, y);
 		}
+	};
+	
+	var makeSmoothNoise = function() {
+		var buff = white(new Float32Array(h * w));
+		
+		return function (srcX, srcY) {
+			var fracX = ease.cubic(frac(srcX));
+			var fracY = ease.cubic(frac(srcY));
+			var x1 = Math.floor(srcX);
+			var y1 = Math.floor(srcY);
+			var x2 = (x1 + w - 1) % w;
+			var y2 = (y1 + h - 1) % h;
+			
+			return lerp(
+				lerp(buff[x2 + y2 * w], buff[x1 + y2 * w], fracX),
+				lerp(buff[x2 + y1 * w], buff[x1 + y1 * w], fracX),
+				fracY
+			);
+		};
 	};
 	
 	
 	// Noise generators
 	
-	var smoothNoise = function (srcX, srcY) {
-		var fracX = ease.cubic(frac(srcX));
-		var fracY = ease.cubic(frac(srcY));
-		var x1 = Math.floor(srcX);
-		var y1 = Math.floor(srcY);
-		var x2 = (x1 + w - 1) % w;
-		var y2 = (y1 + h - 1) % h;
-		
-		return lerp(
-			lerp(buff[x2 + y2 * w], buff[x1 + y2 * w], fracX),
-			lerp(buff[x2 + y1 * w], buff[x1 + y1 * w], fracX),
-			fracY
-		);
-	};
-	
 	var octaveNoise = function(raw) {
-		console.time('s');
-		white(buff);
-		for (var step = 256, amp = 1; step >= 1; step /= 2, amp /= 2) {
-			for (var x = 0; x < w; x++) {
-				for (var y = 0; y < h; y++) {					
-					raw[x + y * w] += smoothNoise(x / step, y / step) * amp;
-				}
-			}
-		}
-		console.timeEnd('s');
-	};
-		
-	var perlin = function(raw) {
-		console.time('p');
-		// opts: high, low, decay, ease
-		var fbm = makeFBM();
-		map2(raw, function(val, x, y) { return fbm(x, y); });
-		console.timeEnd('p');
+		var octNoise = octavize(smoothNoise);
+		map2(raw, function(val, x, y) {
+			return octNoise(x, y);
+		});
 	};
 	
-	var warpedPerlin = function(raw) {
-		var fbm = makeFBM();
-		map2(raw, function(val, x, y) {
-			var qx = 70 * fbm(x, y);
-			var qy = 70 * fbm(x + 4, y + 3);
-			return fbm(x + qx, y + qy);
-		});
-		// per-octave warping was nice too
+	var perlin = function(raw) {
+		map2(raw, function(val, x, y) { return fbm(x, y); });
 	};
 		
 	var ridgedPerlin = function(raw) {
-		var fbm = makeFBM();
 		map2(raw, function (val, x, y) {
-			return Math.abs(fbm(x, y)); // per-octave?
+			return -Math.abs(fbm(x, y)); // per-octave?
 		});
 	};
-		
+	
 	var worley = function(raw) {
 		var cellSize = 32;
 		var cellCount = Math.floor(w / cellSize);
 		
 		var poss = 100;
-		var px = map(white(new Float32Array(poss)), function(x) { return cellSize * x; });
-		var py = map(white(new Float32Array(poss)), function(x) { return cellSize * x; });
+		var fitToCell = function(x) { return cellSize * x; };
+		var px = map(white(new Float32Array(poss)), fitToCell);
+		var py = map(white(new Float32Array(poss)), fitToCell);
 		
 		var permute = makePerm2(Math.max(w, h), poss);
 		var ptsPerCell = 1;
@@ -257,7 +253,7 @@ var terragen = (function() {
 			}
 		}
 	};
-		
+	
 	var raise = function(raw) {
 		// opts: offset dist
 		var posx = Math.floor(w * Math.random());
@@ -272,22 +268,21 @@ var terragen = (function() {
 			}
 		}
 	};
-		
-	var hill = function(raw, rmin, rmax) {
-		// opts: rmin, rmax: rdist
-		var posx = Math.floor(w * Math.random());
-		var posy = Math.floor(h * Math.random());
-		var r = rmin + Math.random() * (rmax - rmin);
-		var r2 = r * r;
-		
-		for (var i = 0; i < w; i++) {
-			for (var j = 0; j < h; j++) {
-				var dx = i - posx;
-				var dy = j - posy;
+	
+	var hill = function(raw, count, rmin, rmax) {
+		for (var i = 0; i < count; i++) {
+			// opts: rmin, rmax: rdist
+			var posx = Math.floor(w * Math.random());
+			var posy = Math.floor(h * Math.random());
+			var r = rmin + Math.random() * (rmax - rmin);
+			var r2 = r * r;
+			
+			map2(raw, function(val, x, y) {
+				var dx = x - posx;
+				var dy = y - posy;
 				var d2 = dx * dx + dy * dy;
-				if (d2 <= r2)
-					raw[i + j * w] += r2 - d2;
-			}
+				return val + (d2 <= r2? r2 - d2: 0);
+			});
 		}
 	}
 	
@@ -327,13 +322,12 @@ var terragen = (function() {
 
 	
 	// Postprocessing
-		
-	var warp = function(raw) {
-		var fbm = makeFBM();
+	
+	var warp = function(raw, warpAmt) {
 		for (var x = 0; x < w; x++) {
 			for (var y = 0; y < h; y++) {
-				var qx = Math.floor(20 * (fbm(x, y) + 1));
-				var qy = Math.floor(20 * (fbm(x + 4, y + 3) + 1));
+				var qx = Math.floor(warpAmt * (fbm(x, y) + 1));
+				var qy = Math.floor(warpAmt * (fbm(x + 4, y + 3) + 1));
 				raw[x + y * w] = raw[(x + qx) % w + w * ((y + qy) % h)];
 			}
 		}
@@ -342,22 +336,32 @@ var terragen = (function() {
 	
 	// Interface
 	
-	var bind = function(mapEl) {
-		
+	var size = function (newW, newH) {
+		w = newW;
+		h = newH;
+		height = new Float32Array(w * h);
+		height.w = w;
+		height.h = h;
+		return this;
 	};
 	
-	var gen = function(mode, context, ops) {
-		var count = ops.count;
-		var warpOn = ops.warp;
-		
+	var bind = function(mapEl) {
+		context = mapEl.getContext('2d');
+		mapEl.width = w;
+		mapEl.height = h;		
+		return this;
+	};
+	
+	var gen = function(ops) {
+		Math.seedrandom(seed);		
 		fill(height, 0);
 		
+		var mode = ops.mode;
 		if (mode === 'fl')
-			for (var i = 0; i < count; i++)
+			for (var i = 0; i < ops.count; i++)
 				raise(height, 3);
 		else if (mode === 'hr')
-			for (var i = 0; i < count; i++)
-				hill(height, 3, 80);
+			hill(height, ops.count, ops.rmin, ops.rmax);
 		else if (mode === 'ds')
 			diamondsqr(height);
 		else if (mode === 'on')
@@ -365,25 +369,34 @@ var terragen = (function() {
 		else if (mode === 'pn')
 			perlin(height);
 		else if (mode === 'wpn')
-			warpedPerlin(height);
+			warpedPerlin(height, ops.nativeWarp);
 		else if (mode === 'rpn')
 			ridgedPerlin(height);
 		else if (mode === 'wn')
 			worley(height);
 		
-		if (warpOn)
-			warp(height);
+		if (ops.postWarp > 0)
+			warp(height, ops.postWarp);
 		//cutoff(height, 0);
-		//map(height, function(x) { return x * x * x; });
+		
 		display(height, context);
+	};
+	
+	var init = function() {
+		smoothNoise = makeSmoothNoise();
+		fbm = makeFBM();
+		seed = Math.random();
+		return this;
 	};
 	
 	
 	// Export
 	
 	return {
+		size: size,
 		bind: bind,
-		run: gen
+		run: gen,
+		init: init
 	};
 }());
 
@@ -391,24 +404,63 @@ var terragen = (function() {
 // DOM bindings
 
 (function() {
-	var modeEl = document.getElementById('mode');
-	var iterEl = document.getElementById('iter');
+	var controls = {
+		mode: document.getElementById('mode'),
+	
+		flIter: document.getElementById('flIter'),
+	
+		hrIter: document.getElementById('hrIter'),
+		rmin: document.getElementById('rmin'),
+		rmax: document.getElementById('rmax'),
+		
+		warp: document.getElementById('warp')
+	};
 	var runBtn = document.getElementById('run');
 	var mapEl = document.getElementById('map');
-	var warpEl = document.getElementById('warp');
-	var mapContext = mapEl.getContext('2d');
-	var w = 513;
-	var h = 513;
-	mapEl.width = w;
-	mapEl.height = h;
+	var panels = {
+		octaveOpts: document.getElementById('octaveOpts'),
+		flOpts: document.getElementById('flOpts'),
+		hrOpts: document.getElementById('hrOpts'),
+		perlinOpts: document.getElementById('perlinOpts'),
+		worleyOpts: document.getElementById('worleyOpts'),
+		postprocess: document.getElementById('postprocess')
+	};
+	
+	terragen.size(513, 513).init().bind(mapEl);
+	
+	var makeConfig = function() {
+		var config = {
+			mode: controls.mode.value,
+			postWarp: parseInt(controls.warp.value)
+		};
+		if (config.mode === 'hr') {
+			config.rmin = parseInt(controls.rmin.value);
+			config.rmax = parseInt(controls.rmax.value);
+			config.count = parseInt(controls.hrIter.value);
+		} else if (config.mode === 'fl') {
+			config.count = parseInt(controls.flIter.value);
+		} else if (config.mode === 'wpn') {
+			config.nativeWarp = parseInt(controls.warp.value);
+		}
+		return config;
+	};
+	var run = function() {
+		var config = makeConfig();
+		
+		panels['octaveOpts'].style.display = 'none';
+		panels['flOpts'].style.display = (config.mode === 'fl'? 'visible': 'none');
+		panels['hrOpts'].style.display = (config.mode === 'hr'? 'visible': 'none');
+		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? 'visible': 'none';
+		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
+		
+		terragen.run(config);
+	};	
+	for (var key in controls)
+		controls[key].addEventListener('change', run);
 	
 	runBtn.addEventListener('click', function() {
-		terragen.run(modeEl.value, mapContext, {
-			count: parseInt(iterEl.value),
-			warp: warpEl.checked
-		});
+		terragen.init().run(makeConfig());
 	});
-	modeEl.addEventListener('change', function() {
-		iterEl.disabled = (['ds', 'on', 'pn'].indexOf(modeEl.value) !== -1);
-	});
+	
+	run();
 }());

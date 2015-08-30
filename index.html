@@ -6,8 +6,11 @@
 	<title>Procedural terrain generation experiment</title>
 	<link rel = 'stylesheet' href = 'style.css'>
 	<style>
-		#iter {
-			width: 6em;
+		input {
+			width: 4em;
+		}
+		#octaveOpts, #flOpts, #hrOpts, #perlinOpts, #worleyOpts, #postprocess {
+			width: 513px;
 		}
 	</style>
 </head>
@@ -15,21 +18,37 @@
 <body>
 	<canvas id = 'map'></canvas>
 	<div id = 'control'>
-		<select id = 'mode'>
+		Type: <select id = 'mode'>
 			<option value = 'wn'>Worley</option>
 			<option value = 'pn'>Perlin</option>
-			<option value = 'wpn'>Warped Perlin</option>
 			<option value = 'rpn'>Ridged Perlin</option>
 			<option value = 'fl'>Fault line</option>
 			<option value = 'hr'>Hill raise</option>
 			<option value = 'ds'>Diamond-square</option>
 			<option value = 'on'>Octave noise</option>
 		</select>
-		<input id = 'iter' type = 'number' value = '4000'></input>
-		<input id = 'warp' type = 'checkbox'></input>
+		<div id = 'octaveOpts'>			
+		</div>
+		<div id = 'flOpts'>			
+			Make <input id = 'flIter' type = 'number' value = '4000'></input> lines
+		</div>
+		<div id = 'hrOpts'>
+			Radius from <input id = 'rmin' type = 'number' value = '4'></input>
+			to <input id = 'rmax' type = 'number' value = '60'></input>,
+			make <input id = 'hrIter' type = 'number' value = '250'></input> hills
+		</div>
+		<div id = 'perlinOpts'>
+		</div>
+		<div id = 'worleyOpts'>
+		</div>
+		<div id = 'postprocess'>
+			Warp <input id = 'warp' type = 'number' value = '0' step = '10'></input>
+		</div>
 		<button id = 'run'>run</button>
 	</div>
 	
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/2.4.0/seedrandom.min.js">
+	</script>
 	<script src = 'terragen.js'></script>
 </body>
 
