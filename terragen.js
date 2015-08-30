@@ -2,6 +2,8 @@ var terragen = (function() {
 	var h = 513;
 	var w = 513;
 	var height = new Float32Array(h * w);
+	height.h = h;
+	height.w = w;
 	var buff = new Float32Array(h * w);
 	
 	
@@ -9,8 +11,17 @@ var terragen = (function() {
 	
 	var map = function(arr, fn) {
 		for (var i = 0; i < arr.length; i++)
-			arr[i] = fn(arr[i]);
+			arr[i] = fn(arr[i], i);
 		return arr;
+	};
+	
+	var map2 = function(mat, fn) {
+		for (var x = 0; x < mat.w; x++) {
+			for (var y = 0; y < mat.h; y++) {
+				mat[x + y * w] = fn(mat[x + y * w], x, y);
+			}
+		}
+		return mat;
 	};
 	
 	var fill = function(raw, val) {
@@ -182,33 +193,25 @@ var terragen = (function() {
 		console.time('p');
 		// opts: high, low, decay, ease
 		var fbm = makeFBM();
-		for (var x = 0; x < w; x++) {
-			for (var y = 0; y < h; y++) {
-				raw[x + y * w] = fbm(x, y);
-			}
-		}
+		map2(raw, function(val, x, y) { return fbm(x, y); });
 		console.timeEnd('p');
 	};
 	
 	var warpedPerlin = function(raw) {
 		var fbm = makeFBM();
-		for (var x = 0; x < w; x++) {
-			for (var y = 0; y < h; y++) {
-				var qx = 70 * fbm(x, y);
-				var qy = 70 * fbm(x + 4, y + 3);
-				raw[x + y * w] = fbm(x + qx, y + qy);
-			}
-		}
+		map2(raw, function(val, x, y) {
+			var qx = 70 * fbm(x, y);
+			var qy = 70 * fbm(x + 4, y + 3);
+			return fbm(x + qx, y + qy);
+		});
 		// per-octave warping was nice too
 	};
 		
 	var ridgedPerlin = function(raw) {
 		var fbm = makeFBM();
-		for (var x = 0; x < w; x++) {
-			for (var y = 0; y < h; y++) {
-				raw[x + y * w] = Math.abs(fbm(x, y)); // per-octave?
-			}
-		}
+		map2(raw, function (val, x, y) {
+			return Math.abs(fbm(x, y)); // per-octave?
+		});
 	};
 		
 	var worley = function(raw) {
