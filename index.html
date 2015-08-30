@@ -16,15 +16,17 @@
 	<canvas id = 'map'></canvas>
 	<div id = 'control'>
 		<select id = 'mode'>
-			<option value = 'wpn'>Warped Perlin</option>
 			<option value = 'wn'>Worley</option>
 			<option value = 'pn'>Perlin</option>
+			<option value = 'wpn'>Warped Perlin</option>
+			<option value = 'rpn'>Ridged Perlin</option>
 			<option value = 'fl'>Fault line</option>
 			<option value = 'hr'>Hill raise</option>
 			<option value = 'ds'>Diamond-square</option>
 			<option value = 'on'>Octave noise</option>
 		</select>
 		<input id = 'iter' type = 'number' value = '4000'></input>
+		<input id = 'warp' type = 'checkbox'></input>
 		<button id = 'run'>run</button>
 	</div>
 	
