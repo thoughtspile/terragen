@@ -56,3 +56,13 @@ var white = function(arr) {
 	}
 	return arr;
 };
+
+var octavize = function(fn) {
+	return function(x, y) {
+		var res = 0;
+		for (var step = 256, amp = 1; step >= 1; step /= 2, amp /= 2) {
+			res += fn(x / step, y / step) * amp;
+		}
+		return res;
+	}
+};
