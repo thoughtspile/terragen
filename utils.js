@@ -1,0 +1,58 @@
+// array utils
+
+var map = function(arr, fn) {
+	for (var i = 0; i < arr.length; i++) {
+		arr[i] = fn(arr[i], i);
+	}
+	return arr;
+};
+
+var map2 = function(mat, fn) {
+	for (var y = 0, pos = 0; y < mat.h; y++) {
+		for (var x = 0; x < mat.w; x++, pos++) {
+			mat[pos] = fn(mat[pos], x, y);
+		}
+	}
+	return mat;
+};
+
+var fill = function(arr, val) {
+	for (var i = 0; i < arr.length; i++) {
+		arr[i] = val;
+	}
+	return arr;
+};
+
+var range = function(arr) {
+	var low = Infinity;
+	var high= -Infinity;
+	for (var i = 0; i < arr.length; i++) {
+		if (arr[i] < low)
+			low = arr[i];
+		if (arr[i] > high)
+			high = arr[i];
+	}
+	return [low, high];
+}
+
+var normalize = function(arr) {
+	var rawRange = range(arr);
+	for (var i = 0; i < arr.length; i++) {
+		arr[i] = (arr[i] - rawRange[0]) / (rawRange[1] - rawRange[0]);
+	}
+	return arr;
+}
+
+var cutoff = function(raw, val) {
+	for (var i = 0; i < raw.length; i++)
+		if (raw[i] < val)
+			raw[i] = val;
+	return raw;
+}
+
+var white = function(arr) {
+	for (var i = 0; i < arr.length; i++) {
+		arr[i] = Math.random();
+	}
+	return arr;
+};
