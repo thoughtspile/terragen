@@ -16,7 +16,7 @@
 </head>
 
 <body>
-	<canvas id = 'map'></canvas>
+	<div id = 'map'></div>
 	<div id = 'control'>
 		Type: <select id = 'mode'>
 			<option value = 'wn'>Worley</option>
@@ -47,8 +47,10 @@
 		<button id = 'run'>run</button>
 	</div>
 
+	<script src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js'></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/2.4.0/seedrandom.min.js">
 	</script>
+	<script src = 'OrbitControls.js'></script>
 	<script src = 'utils.js'></script>
 	<script src = 'numerics.js'></script>
 	<script src = 'naive-noises.js'></script>

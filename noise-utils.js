@@ -1,5 +1,3 @@
-
-
 var makePerm2 = function (nPerm, target) {
     var perm = new Float32Array(2 * nPerm);
     for (var i = 0; i < perm.length; i++) {

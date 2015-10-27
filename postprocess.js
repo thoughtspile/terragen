@@ -13,7 +13,7 @@ var warp = function(raw, warpAmt, fbm) {
 };
 
 var ridge = function(raw) {
-	map(raw, function (val) {
-		return -Math.abs(val); // per-octave?
+	map2(raw, function (val, x, y) {
+		return Math.pow(Math.abs(val), 2); // per-octave?
 	});
 }

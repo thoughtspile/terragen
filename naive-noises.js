@@ -1,7 +1,7 @@
 var raise = function(raw) {
 	// opts: offset dist
-	var posx = Math.floor(raw.w * Math.random());
-	var posy = Math.floor(raw.h * Math.random());
+	var posx = Math.floor(w * Math.random());
+	var posy = Math.floor(h * Math.random());
 	var ang = Math.tan(Math.PI * (Math.random() - .5));
 	var offset = Math.random() - .5;
 
@@ -13,21 +13,35 @@ var raise = function(raw) {
 	}
 };
 
-var hill = function(raw, count, rmin, rmax) {
+
+
+var hillGen = function(w, h, count, rmin, rmax) {
+	var hills = [];
 	for (var i = 0; i < count; i++) {
-		var posx = Math.floor(raw.w * Math.random());
-		var posy = Math.floor(raw.h * Math.random());
+		var posx = Math.floor(w * Math.random());
+		var posy = Math.floor(h * Math.random());
 		var r = rmin + Math.random() * (rmax - rmin);
 		var r2 = r * r;
-
-		map2(raw, function(val, x, y) {
-			var dx = x - posx;
-			var dy = y - posy;
-			var d2 = dx * dx + dy * dy;
-			return val + (d2 <= r2? r2 - d2: 0);
-		});
+		hills.push({ x: posx, y: posy, r: r, r2: r2 });
 	}
+	return function(x, y) {
+		var h = 0;
+		for (var i = 0; i < count; i++) {
+			var dx = x - hills[i].x;
+			var dy = y - hills[i].y;
+			var d2 = dx * dx + dy * dy;
+			if (d2 < hills[i].r2)
+				h += hills[i].r2 - d2;
+		}
+		return h * h * h;
+	};
 }
+
+var hill = function(raw, count, rmin, rmax) {
+	var gen = hillGen(raw.w, raw.h, count, rmin, rmax);
+	map2(raw, function(_, x, y) { return gen(x, y); })
+}
+
 
 var diamondsqr = function(arr) {
     var w = arr.w;
@@ -64,6 +78,7 @@ var diamondsqr = function(arr) {
 	}
 	return arr;
 };
+
 
 var octaveNoise = function(raw, noiseGenerator) {
 	var octNoise = octavize(noiseGenerator);

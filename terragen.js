@@ -58,13 +58,12 @@ var terragen = (function() {
 			if (ops.postWarp > 0)
 				warp(height, ops.postWarp, fbm);
 
-			display(height, context, 0);
-			display(height, context, 1);
-			display(height, context, 2);
+			return height;
 		},
 		init: function() {
 			smoothNoise = makeSmoothNoise(w, h);
 			fbm = makeFBM(w, h);
+				window.fbm = fbm
 			seed = Math.random();
 			return this;
 		}

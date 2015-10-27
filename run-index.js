@@ -21,7 +21,8 @@
 		postprocess: document.getElementById('postprocess')
 	};
 
-	terragen.size(513, 513).init().bind(mapEl);
+	terragen.size(513, 513).init();
+	init3d(mapEl);
 
 	var makeConfig = function() {
 		var config = {
@@ -48,14 +49,15 @@
 		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? 'visible': 'none';
 		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
 
-		terragen.run(config);
+		display3d(terragen.run(makeConfig()), mapEl);
 	};
 	for (var key in controls)
 		controls[key].addEventListener('change', run);
 
 	runBtn.addEventListener('click', function() {
-		terragen.init().run(makeConfig());
+		display3d(terragen.init().run(makeConfig()));
 	});
+
 
 	run();
 }());

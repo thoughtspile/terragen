@@ -11,3 +11,51 @@ var display = function(raw, context, channel) {
 	}
 	context.putImageData(mapPixels, 0, 0);
 };
+
+var init3d = function(canvas) {
+
+	var scene = new THREE.Scene();
+
+	var camera = new THREE.PerspectiveCamera( 30, 1, 1, 10000 );
+	camera.position.z = 300;
+	camera.position.y = 300;
+	camera.position.x = 300;
+
+	var light = new THREE.PointLight( 0xdfebff );
+	light.position.set( 100, 80, 0 );
+	scene.add(light);
+
+	terrain = new THREE.PlaneBufferGeometry(200, 200, 512, 512);
+	terrain.dynamic = true;
+	var terrainMat = new THREE.MeshLambertMaterial( {
+		specular: 0x555555,
+		shininess: 30,
+		color: 0xaabbcc } );
+	var terrainMesh = new THREE.Mesh(terrain, terrainMat);
+	terrainMesh.rotation.x = -Math.PI / 2;
+	scene.add(terrainMesh)
+
+	renderer = new THREE.WebGLRenderer( { antialias: true } );
+	renderer.setSize(512, 512);
+	renderer.setClearColor(new THREE.Color('cyan'));
+
+	var controls = new THREE.OrbitControls(camera, canvas);
+
+	canvas.appendChild( renderer.domElement );
+
+	(function update() {
+		controls.update();
+		renderer.render(scene, camera);
+		window.requestAnimationFrame(update);
+	}());
+}
+
+var display3d = function(heightmap) {
+	normalize(heightmap);
+	var pos = terrain.attributes.position.array;
+	for (var i = 2; i < pos.length; i += 3)
+		pos[i] = heightmap[(i - 2) / 3] * 20;
+	terrain.attributes.position.needsUpdate = true;
+	terrain.computeVertexNormals();
+	terrain.attributes.normals.needsUpdate = true;
+}
