@@ -28,12 +28,20 @@ var init3d = function(canvas) {
 	terrain = new THREE.PlaneBufferGeometry(200, 200, 512, 512);
 	terrain.dynamic = true;
 	var terrainMat = new THREE.MeshLambertMaterial( {
-		specular: 0x555555,
-		shininess: 30,
 		color: 0xaabbcc } );
 	var terrainMesh = new THREE.Mesh(terrain, terrainMat);
 	terrainMesh.rotation.x = -Math.PI / 2;
 	scene.add(terrainMesh)
+
+	water = new THREE.PlaneBufferGeometry(400, 400, 512, 512);
+	water.dynamic = true;
+	var waterMat = new THREE.MeshPhongMaterial( {
+		specular: 0x555555,
+		shininess: 30,
+		color: 0x2255aa } );
+	var waterMesh = new THREE.Mesh(water, waterMat);
+	waterMesh.rotation.x = -Math.PI / 2;
+	scene.add(waterMesh)
 
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setSize(512, 512);
@@ -50,12 +58,13 @@ var init3d = function(canvas) {
 	}());
 }
 
-var display3d = function(heightmap) {
+var display3d = function(geom, heightmap, scale) {
 	normalize(heightmap);
-	var pos = terrain.attributes.position.array;
+	console.log(geom, heightmap)
+	var pos = geom.attributes.position.array;
 	for (var i = 2; i < pos.length; i += 3)
-		pos[i] = heightmap[(i - 2) / 3] * 20;
-	terrain.attributes.position.needsUpdate = true;
-	terrain.computeVertexNormals();
-	terrain.attributes.normals.needsUpdate = true;
+		pos[i] = heightmap[(i - 2) / 3] * scale;
+	geom.attributes.position.needsUpdate = true;
+	geom.computeVertexNormals();
+	geom.attributes.normals.needsUpdate = true;
 }
