@@ -53,10 +53,10 @@ var terragen = (function() {
 			else if (mode === 'wn')
 				worley(height);
 
-			if (mode === 'rpn')
-				ridge(height);
 			if (ops.postWarp > 0)
 				warp(height, ops.postWarp, fbm);
+			if (mode === 'rpn')
+				ridge(height);
 
 			return height;
 		},

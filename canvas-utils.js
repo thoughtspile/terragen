@@ -58,13 +58,18 @@ var init3d = function(canvas) {
 	}());
 }
 
-var display3d = function(geom, heightmap, scale) {
-	normalize(heightmap);
-	console.log(geom, heightmap)
+var display3d = function(geom, gen, offset, scale) {
+	//normalize(heightmap);
+	gen = function(x, y) {
+		return (fbm(x, y) + offset) * scale;
+	};
 	var pos = geom.attributes.position.array;
-	for (var i = 2; i < pos.length; i += 3)
-		pos[i] = heightmap[(i - 2) / 3] * scale;
+	var rowCount = 512;
+	for (var i = 0; i < pos.length / 3; i++) {
+		pos[3 * i + 2] = gen(i % 513, Math.floor(i / 513));
+	}
 	geom.attributes.position.needsUpdate = true;
 	geom.computeVertexNormals();
-	geom.attributes.normals.needsUpdate = true;
+	geom.attributes.normal.needsUpdate = true;
+	console.log(geom, heightmap)
 }

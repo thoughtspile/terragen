@@ -40,7 +40,8 @@
 		}
 		return config;
 	};
-	var run = function() {
+
+	var updateView = function() {
 		var config = makeConfig();
 
 		panels['octaveOpts'].style.display = 'none';
@@ -48,18 +49,17 @@
 		panels['hrOpts'].style.display = (config.mode === 'hr'? 'visible': 'none');
 		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? 'visible': 'none';
 		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
-		
-		display3d(terrain, terragen.init().run(makeConfig()), 20);
-		display3d(water, terragen.init().run(makeConfig()), 1);
 	};
-	for (var key in controls)
+
+	var run = function() {
+		display3d(terrain, terragen.init().run(makeConfig()), -.02, 20);
+		display3d(water, terragen.init().run(makeConfig()), 0, 1);
+	};
+
+	for (var key in controls) {
+		controls[key].addEventListener('change', updateView);
 		controls[key].addEventListener('change', run);
-
-	runBtn.addEventListener('click', function() {
-		display3d(terrain, terragen.init().run(makeConfig()), 20);
-		display3d(water, terragen.init().run(makeConfig()), 1);
-	});
-
-
+	}
+	runBtn.addEventListener('click', run);
 	run();
 }());
