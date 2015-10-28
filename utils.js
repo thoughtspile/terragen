@@ -1,5 +1,9 @@
 // array utils
 
+var mod = function(base, by) {
+	return ((base % by) + by) % by;
+}
+
 var map = function(arr, fn) {
 	for (var i = 0; i < arr.length; i++) {
 		arr[i] = fn(arr[i], i);

@@ -5,11 +5,12 @@ var makePerm2 = function (nPerm, target) {
     }
 
     return function(x, y) {
-        return perm[x + perm[y]] % target;
+        var res = perm[mod(x + perm[mod(y, nPerm)], nPerm)] % target;
+        return res;
     };
 };
 
-var makeFBM = function(w, h) {
+var makeFBM = function() {
     var grads = 100;
     var gx = new Float32Array(grads);
     var gy = new Float32Array(grads);
@@ -18,15 +19,15 @@ var makeFBM = function(w, h) {
         gx[i] = Math.cos(dir);
         gy[i] = Math.sin(dir);
     }
-    var permute = makePerm2(Math.max(w, h), grads);
+    var permute = makePerm2(100, grads);
 
     var bm = function(srcX, srcY) {
         var x1 = Math.floor(srcX);
         var y1 = Math.floor(srcY);
         var dx = srcX - x1;
         var dy = srcY - y1;
-        var x2 = (x1 === w - 1? 0: x1 + 1);
-        var y2 = (y1 === h - 1? 0: y1 + 1);
+        var x2 = x1 + 1;
+        var y2 = y1 + 1;
 
         var i11 = permute(x1, y1);
         var i12 = permute(x1, y2);
@@ -46,8 +47,6 @@ var makeFBM = function(w, h) {
     var octBM = octavize(bm);
 
     return function(x, y) {
-        var x = (x + w) % w;
-        var y = (y + h) % h;
         return octBM(x, y);
     }
 };
