@@ -58,10 +58,9 @@ var init3d = function(canvas) {
 	}());
 }
 
-var display3d = function(geom, gen, offset, scale) {
-	//normalize(heightmap);
-	gen = function(x, y) {
-		return (fbm(x, y) + offset) * scale;
+var display3d = function(geom, gen01, offset, scale) {
+	var gen = function(x, y) {
+		return (gen01(x, y) + offset) * scale;
 	};
 	var pos = geom.attributes.position.array;
 	var rowCount = 512;
@@ -71,5 +70,4 @@ var display3d = function(geom, gen, offset, scale) {
 	geom.attributes.position.needsUpdate = true;
 	geom.computeVertexNormals();
 	geom.attributes.normal.needsUpdate = true;
-	console.log(geom, heightmap)
 }

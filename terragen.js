@@ -60,6 +60,14 @@ var terragen = (function() {
 
 			return height;
 		},
+		generator: function(ops) {
+			var fn = fbm;
+			if (ops.postWarp > 0)
+				fn = warpize(fn, fn, ops.postWarp);
+			if (mode === 'rpn')
+				return function(x, y) { return Math.abs(fn(x, y)); };
+			return fn;
+		},
 		init: function() {
 			smoothNoise = makeSmoothNoise(w, h);
 			fbm = makeFBM(w, h);

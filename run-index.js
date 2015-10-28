@@ -52,8 +52,8 @@
 	};
 
 	var run = function() {
-		display3d(terrain, terragen.init().run(makeConfig()), -.02, 20);
-		display3d(water, terragen.init().run(makeConfig()), 0, 1);
+		display3d(terrain, terragen.init().generator(makeConfig()), -.02, 20);
+		display3d(water, terragen.init().generator(makeConfig()), 0, 1);
 	};
 
 	for (var key in controls) {
