@@ -72,7 +72,6 @@ var addObject = function(gen, mat, scene, controls) {
 
 	var origin = scene.controls.target;//camera.position;
 	var pool = [];
-	var needInit = true;
 	(function update() {
 		var originCell = {
 			ix: Math.floor(origin.x / cellSize) + Math.floor(cellSideCount / 2),
@@ -93,17 +92,10 @@ var addObject = function(gen, mat, scene, controls) {
 			return !isVisible(cell);
 		});
 
-		if (!needInit) {
-			var lowx = Math.min.apply(Math, cells.map(function(cell) { return cell.ix}))
-			var highx = Math.max.apply(Math, cells.map(function(cell) { return cell.ix}))
-			var lowy = Math.min.apply(Math, cells.map(function(cell) { return cell.iy}))
-			var highy = Math.max.apply(Math, cells.map(function(cell) { return cell.iy}))
-		} else {
-			var lowx = 0;
-			var highx = cellSideCount;
-			var lowy = 0;
-			var highy = cellSideCount;
-		}
+		var lowx = originCell.ix - Math.floor(cellSideCount / 2);
+		var highx = originCell.ix + Math.floor(cellSideCount / 2);
+		var lowy = originCell.iy - Math.floor(cellSideCount / 2);
+		var highy = originCell.iy + Math.floor(cellSideCount / 2);
 		var enter = [];
 		for (var ix = lowx - 1; ix <= highx + 1; ix++) {
 			for (var iy = lowy - 1; iy <= highy + 1; iy++) {
@@ -136,7 +128,6 @@ var addObject = function(gen, mat, scene, controls) {
 				});
 			}
 		}
-		needInit = false;
 		window.requestAnimationFrame(update);
 	}());
 };
