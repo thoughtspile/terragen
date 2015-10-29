@@ -19,12 +19,15 @@ var init3d = function(canvas) {
 	var scene = new THREE.Scene();
 
 	var camera = new THREE.PerspectiveCamera( 30, 1, 1, 10000 );
-	camera.position.z = 300;
-	camera.position.y = 300;
-	camera.position.x = 300;
+	camera.position.z = cellSize;
+	camera.position.y = cellSize; //h
+	camera.position.x = cellSize;
+    //camera.lookAt(new THREE.Vector3(0, 0, 0));
+	scene.camera = camera;
+	window.camera = camera
 
-	var light = new THREE.PointLight( 0xdfebff );
-	light.position.set( 100, 80, 0 );
+	var light = new THREE.PointLight( 0xdfebff, 3 );
+	light.position.set( 4000, 800, 0 );
 	scene.add(light);
 
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -32,9 +35,22 @@ var init3d = function(canvas) {
 	renderer.setClearColor(new THREE.Color('cyan'));
 	canvas.appendChild( renderer.domElement );
 
-	scene.controls = new THREE.OrbitControls(camera, canvas);
+	scene.controls =
+		//new THREE.FlyControls(camera);
+		new THREE.OrbitControls(camera, canvas);
+    //scene.controls.lookSpeed = 4;
+    //scene.controls.movementSpeed = 200;
+    //scene.controls.noFly = true;
+    //scene.controls.lookVertical = true;
+    //scene.controls.constrainVertical = true;
+    //scene.controls.verticalMin = 1.0;
+    //scene.controls.verticalMax = 2.0;
+    //scene.controls.lon = -150;
+    //scene.controls.lat = 120;
+
+	var clock = new THREE.Clock();
 	(function update() {
-		scene.controls.update();
+		scene.controls.update(clock.getDelta());
 		renderer.render(scene, camera);
 		window.requestAnimationFrame(update);
 	}());
@@ -44,20 +60,26 @@ var init3d = function(canvas) {
 
 var addObject = function(gen, mat, scene, controls) {
 	var geom = new THREE.PlaneBufferGeometry(
-		2 * cellSize, 2 * cellSize,
+		3 * cellSize, 3 * cellSize,
 		cellDetail, cellDetail);
 	geom.dynamic = true;
 	var mesh = new THREE.Mesh(geom, mat);
 	mesh.rotation.x = -Math.PI / 2;
 	scene.add(mesh);
 
+	var origin = scene.camera.position;
 	var lastPosition = { x: Infinity, y: Infinity };
 	(function update() {
-		if (Math.abs(controls.target.x - lastPosition.x) > cellSize ||
-		  Math.abs(controls.target.z - lastPosition.y) > cellSize) {
-			lastPosition = { x: controls.target.x, y: controls.target.z };
+		if (Math.abs(origin.x - lastPosition.x) > cellSize ||
+		  Math.abs(origin.z - lastPosition.y) > cellSize) {
+			lastPosition = {
+				x: origin.x,
+				y: origin.z};
 			mesh.position.set(lastPosition.x, 0, lastPosition.y);
-			display3d(geom, gen, lastPosition);
+			display3d(geom, gen, {
+				x: origin.x - .5 * cellSize,
+				y: -origin.z - .5 * cellSize // why mirroring?
+			});
 		}
 		window.requestAnimationFrame(update);
 	}());
