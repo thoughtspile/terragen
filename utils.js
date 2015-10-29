@@ -1,5 +1,9 @@
 // array utils
 
+var dist = function(a, b) {
+	
+}
+
 var mod = function(base, by) {
 	return ((base % by) + by) % by;
 }

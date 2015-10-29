@@ -79,9 +79,13 @@ var addObject = function(gen, mat, scene, controls) {
 			iy: Math.floor(origin.z / cellSize) + Math.floor(cellSideCount / 2)
 		};
 
+		var cellDist = function(a, b) {
+			return Math.pow(a.ix - b.ix, 2) +
+				Math.pow(a.iy - b.iy, 2);
+		};
+
 		var isVisible = function(cell) {
-			return Math.pow(cell.ix - originCell.ix, 2) +
-				Math.pow(cell.iy - originCell.iy, 2) <=
+			return cellDist(cell, originCell) <=
 				Math.pow(Math.floor(cellSideCount / 2), 2)
 		};
 
@@ -109,7 +113,14 @@ var addObject = function(gen, mat, scene, controls) {
 				  }))
 					enter.push(cand);
 			}
-		}
+		};
+
+		var cellDistCmp = function(a, b) {
+			return cellDist(a, originCell) <= cellDist(b, originCell);
+		};
+		enter.sort(cellDistCmp);
+		exit.sort(cellDistCmp).reverse();
+
 		if (exit.length > 0 || enter.length > 0) {
 			var start = Date.now();
 			while (enter.length > 0 && Date.now() - start < 16) {
