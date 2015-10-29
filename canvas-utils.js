@@ -1,6 +1,6 @@
-var cellSize = 20;
+var cellSize = 50;
 var cellSideCount = 11;
-var cellDetail = 20;
+var cellDetail = 80;
 
 var display = function(raw, context, channel) {
 	var mapPixels = context.getImageData(0, 0, raw.w, raw.h);
@@ -26,7 +26,6 @@ var init3d = function(canvas) {
 	camera.position.x = 0;
     camera.lookAt(new THREE.Vector3(0, 0, 0));
 	scene.camera = camera;
-	window.camera = camera;
 
 	var light = new THREE.PointLight( 0xdfebff, 3 );
 	light.position.set( 4000, 800, 0 );
@@ -66,6 +65,8 @@ var addObject = function(gen, mat, scene, controls) {
 			container.add(mesh);
 		}
 	}
+	container.position.x = -cellSideCount * cellSize / 2;
+	container.position.z = -cellSideCount * cellSize / 2;
 	scene.add(container);
 
 	var origin = scene.controls.target;//camera.position;
@@ -77,60 +78,59 @@ var addObject = function(gen, mat, scene, controls) {
 		left: 0,
 		right: cellSideCount - 1
 	};
+
+	var swap = [];
 	(function update() {
 		var right = origin.x - lastPosition.x > cellSize;
 		var left = -origin.x + lastPosition.x > cellSize;
 		var down = -origin.z + lastPosition.y > cellSize;
 		var up = origin.z - lastPosition.y > cellSize;
-		console.log(up, down, left, right)
 
-		var swap = cells.filter(function(cellData) {
-			return needInit ||
-				left && cellData.ix === bord.right ||
-				right && cellData.ix === bord.left ||
-				up && cellData.iy === bord.down ||
-				down && cellData.iy === bord.up;
+		var extra = [];
+		cells.forEach(function(cellData) {
+			var flag = false;
+			if (needInit)
+				flag = true;
+			if (left && cellData.ix === bord.right) {
+				cellData.ix = bord.left - 1;
+				flag = true;
+			}
+			if (right && cellData.ix === bord.left) {
+				cellData.ix = bord.right + 1;
+				flag = true;
+			}
+			if (up && cellData.iy === bord.down) {
+				cellData.iy = bord.up + 1;
+				flag = true;
+			}
+			if (down && cellData.iy === bord.up) {
+				cellData.iy = bord.down - 1;
+				flag = true;
+			}
+			if (flag && swap.indexOf(cellData) === -1)
+				extra.push(cellData)
 		});
-		if (up) {
-			swap.forEach(function(cell) {
-				if (cell.iy === bord.down) cell.iy = bord.up + 1;
-			});
-			bord.down++;
-			bord.up++;
-		}
-		if (down) {
-			swap.forEach(function(cell) {
-				if (cell.iy === bord.up) cell.iy = bord.down - 1;
-			});
-			bord.down--;
-			bord.up--;
-		}
-		if (left) {
-			swap.forEach(function(cell) {
-				if (cell.ix === bord.right) cell.ix = bord.left - 1;
-			});
-			bord.left--;
-			bord.right--;
-		}
-		if (right) {
-			swap.forEach(function(cell) {
-				if (cell.ix === bord.left) cell.ix = bord.right + 1;
-			});
-			bord.left++;
-			bord.right++;
-		}
+		swap = extra.concat(swap);
+
+		var mvX = (right? 1: left? -1: 0);
+		var mvY = (up? 1: down? -1: 0);
+		bord.down += mvY;
+		bord.up += mvY;
+		bord.left += mvX;
+		bord.right += mvX;
 
 		if (swap.length > 0) {
 			lastPosition = { x: origin.x, y: origin.z };
-			mesh.position.set(lastPosition.x, 0, lastPosition.y);
-			swap.forEach(function(cellData) {
+			var start = Date.now();
+			while (swap.length > 0 && Date.now() - start < 16) {
+				var cellData = swap.pop()
 				cellData.mesh.position.x = cellData.ix * cellSize;
 				cellData.mesh.position.z = cellData.iy * cellSize;
 				display3d(cellData.geom, gen, {
 					x: cellData.ix * cellSize,
 					y: -cellData.iy * cellSize // why mirroring?
 				});
-			});
+			}
 		}
 
 		needInit = false;
