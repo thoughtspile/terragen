@@ -1,5 +1,6 @@
-var cellSize = 200;
-var cellDetail = 100;
+var cellSize = 20;
+var cellSideCount = 11;
+var cellDetail = 20;
 
 var display = function(raw, context, channel) {
 	var mapPixels = context.getImageData(0, 0, raw.w, raw.h);
@@ -17,14 +18,15 @@ var display = function(raw, context, channel) {
 
 var init3d = function(canvas) {
 	var scene = new THREE.Scene();
+	window.scene = scene;
 
 	var camera = new THREE.PerspectiveCamera( 30, 1, 1, 10000 );
-	camera.position.z = cellSize;
-	camera.position.y = cellSize; //h
-	camera.position.x = cellSize;
-    //camera.lookAt(new THREE.Vector3(0, 0, 0));
+	camera.position.z = 0;
+	camera.position.y = 200; //h
+	camera.position.x = 0;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
 	scene.camera = camera;
-	window.camera = camera
+	window.camera = camera;
 
 	var light = new THREE.PointLight( 0xdfebff, 3 );
 	light.position.set( 4000, 800, 0 );
@@ -36,21 +38,12 @@ var init3d = function(canvas) {
 	canvas.appendChild( renderer.domElement );
 
 	scene.controls =
-		//new THREE.FlyControls(camera);
 		new THREE.OrbitControls(camera, canvas);
-    //scene.controls.lookSpeed = 4;
-    //scene.controls.movementSpeed = 200;
-    //scene.controls.noFly = true;
-    //scene.controls.lookVertical = true;
-    //scene.controls.constrainVertical = true;
-    //scene.controls.verticalMin = 1.0;
-    //scene.controls.verticalMax = 2.0;
-    //scene.controls.lon = -150;
-    //scene.controls.lat = 120;
+		//new rtsCameraControl(camera, { moveSpeed: 10 });
 
 	var clock = new THREE.Clock();
 	(function update() {
-		scene.controls.update(clock.getDelta());
+		scene.controls.update(clock.getDelta(), true);
 		renderer.render(scene, camera);
 		window.requestAnimationFrame(update);
 	}());
@@ -59,28 +52,88 @@ var init3d = function(canvas) {
 }
 
 var addObject = function(gen, mat, scene, controls) {
-	var geom = new THREE.PlaneBufferGeometry(
-		3 * cellSize, 3 * cellSize,
-		cellDetail, cellDetail);
-	geom.dynamic = true;
-	var mesh = new THREE.Mesh(geom, mat);
-	mesh.rotation.x = -Math.PI / 2;
-	scene.add(mesh);
+	var container = new THREE.Group();
+	var cells = [];
+	for (var i = 0; i < cellSideCount; i++) {
+		for (var j = 0; j < cellSideCount; j++) {
+			var geom = new THREE.PlaneBufferGeometry(
+				cellSize, cellSize,
+				cellDetail, cellDetail);
+			geom.dynamic = true;
+			var mesh = new THREE.Mesh(geom, mat);
+			mesh.rotation.x = -Math.PI / 2;
+			cells.push({ ix: i, iy: j, geom: geom, mesh: mesh });
+			container.add(mesh);
+		}
+	}
+	scene.add(container);
 
-	var origin = scene.camera.position;
+	var origin = scene.controls.target;//camera.position;
 	var lastPosition = { x: Infinity, y: Infinity };
+	var needInit = true;
+	var bord = {
+		down: 0,
+		up: cellSideCount - 1,
+		left: 0,
+		right: cellSideCount - 1
+	};
 	(function update() {
-		if (Math.abs(origin.x - lastPosition.x) > cellSize ||
-		  Math.abs(origin.z - lastPosition.y) > cellSize) {
-			lastPosition = {
-				x: origin.x,
-				y: origin.z};
+		var right = origin.x - lastPosition.x > cellSize;
+		var left = -origin.x + lastPosition.x > cellSize;
+		var down = -origin.z + lastPosition.y > cellSize;
+		var up = origin.z - lastPosition.y > cellSize;
+		console.log(up, down, left, right)
+
+		var swap = cells.filter(function(cellData) {
+			return needInit ||
+				left && cellData.ix === bord.right ||
+				right && cellData.ix === bord.left ||
+				up && cellData.iy === bord.down ||
+				down && cellData.iy === bord.up;
+		});
+		if (up) {
+			swap.forEach(function(cell) {
+				if (cell.iy === bord.down) cell.iy = bord.up + 1;
+			});
+			bord.down++;
+			bord.up++;
+		}
+		if (down) {
+			swap.forEach(function(cell) {
+				if (cell.iy === bord.up) cell.iy = bord.down - 1;
+			});
+			bord.down--;
+			bord.up--;
+		}
+		if (left) {
+			swap.forEach(function(cell) {
+				if (cell.ix === bord.right) cell.ix = bord.left - 1;
+			});
+			bord.left--;
+			bord.right--;
+		}
+		if (right) {
+			swap.forEach(function(cell) {
+				if (cell.ix === bord.left) cell.ix = bord.right + 1;
+			});
+			bord.left++;
+			bord.right++;
+		}
+
+		if (swap.length > 0) {
+			lastPosition = { x: origin.x, y: origin.z };
 			mesh.position.set(lastPosition.x, 0, lastPosition.y);
-			display3d(geom, gen, {
-				x: origin.x - .5 * cellSize,
-				y: -origin.z - .5 * cellSize // why mirroring?
+			swap.forEach(function(cellData) {
+				cellData.mesh.position.x = cellData.ix * cellSize;
+				cellData.mesh.position.z = cellData.iy * cellSize;
+				display3d(cellData.geom, gen, {
+					x: cellData.ix * cellSize,
+					y: -cellData.iy * cellSize // why mirroring?
+				});
 			});
 		}
+
+		needInit = false;
 		window.requestAnimationFrame(update);
 	}());
 };
