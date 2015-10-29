@@ -5,8 +5,7 @@ var makePerm2 = function (nPerm, target) {
     }
 
     return function(x, y) {
-        var res = perm[mod(x + perm[mod(y, nPerm)], nPerm)] % target;
-        return res;
+        return perm[mod(x + perm[mod(y, nPerm)], nPerm)] % target;
     };
 };
 

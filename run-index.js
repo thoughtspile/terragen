@@ -21,9 +21,6 @@
 		postprocess: document.getElementById('postprocess')
 	};
 
-	terragen.size(513, 513).init();
-	init3d(mapEl);
-
 	var makeConfig = function() {
 		var config = {
 			mode: controls.mode.value,
@@ -51,9 +48,27 @@
 		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
 	};
 
+	terragen.size(513, 513).init();
+	var scene = init3d(mapEl);
+	var rawGen = terragen.init().generator(makeConfig());
+
+	var terrainGen = function(x, y) {
+		return (rawGen(x, y) -.02) * 20;
+	};
+	var terrainMat = new THREE.MeshLambertMaterial( {
+		color: 0xaabbcc } );
+	addObject(terrainGen, terrainMat, scene, scene.controls);
+
+	var waterGen = rawGen;
+	var waterMat = new THREE.MeshPhongMaterial( {
+		specular: 0x555555,
+		shininess: 30,
+		color: 0x2255aa } );
+	addObject(waterGen, waterMat, scene, scene.controls);
+
 	var run = function() {
-		display3d(terrain, terragen.init().generator(makeConfig()), -.02, 20);
-		display3d(water, terragen.init().generator(makeConfig()), 0, 1);
+		//display3d(terrain, terrainGen);
+		//display3d(water, waterGen);
 	};
 
 	for (var key in controls) {
