@@ -1,6 +1,6 @@
 var cellSize = 50;
-var cellSideCount = 11;
-var cellDetail = 80;
+var cellSideCount = 20;
+var cellDetail = 20;
 
 var display = function(raw, context, channel) {
 	var mapPixels = context.getImageData(0, 0, raw.w, raw.h);
@@ -52,87 +52,79 @@ var init3d = function(canvas) {
 
 var addObject = function(gen, mat, scene, controls) {
 	var container = new THREE.Group();
-	var cells = [];
-	for (var i = 0; i < cellSideCount; i++) {
-		for (var j = 0; j < cellSideCount; j++) {
-			var geom = new THREE.PlaneBufferGeometry(
-				cellSize, cellSize,
-				cellDetail, cellDetail);
-			geom.dynamic = true;
-			var mesh = new THREE.Mesh(geom, mat);
-			mesh.rotation.x = -Math.PI / 2;
-			cells.push({ ix: i, iy: j, geom: geom, mesh: mesh });
-			container.add(mesh);
-		}
-	}
 	container.position.x = -cellSideCount * cellSize / 2;
 	container.position.z = -cellSideCount * cellSize / 2;
 	scene.add(container);
 
-	var origin = scene.controls.target;//camera.position;
-	var lastPosition = { x: Infinity, y: Infinity };
-	var needInit = true;
-	var bord = {
-		down: 0,
-		up: cellSideCount - 1,
-		left: 0,
-		right: cellSideCount - 1
+	var cells = [];
+	var mkCell = function() {
+		var geom = new THREE.PlaneBufferGeometry(
+			cellSize, cellSize,
+			cellDetail, cellDetail);
+		geom.dynamic = true;
+		var mesh = new THREE.Mesh(geom, mat);
+		mesh.rotation.x = -Math.PI / 2;
+		var cell = { geom: geom, mesh: mesh };
+		cells.push(cell);
+		container.add(mesh);
+		return cell;
 	};
 
-	var swap = [];
+	var origin = scene.controls.target;//camera.position;
+	var pool = [];
+	var needInit = true;
 	(function update() {
-		var right = origin.x - lastPosition.x > cellSize;
-		var left = -origin.x + lastPosition.x > cellSize;
-		var down = -origin.z + lastPosition.y > cellSize;
-		var up = origin.z - lastPosition.y > cellSize;
+		var originCell = {
+			ix: Math.floor(origin.x / cellSize) + Math.floor(cellSideCount / 2),
+			iy: Math.floor(origin.z / cellSize) + Math.floor(cellSideCount / 2)
+		};
 
-		var extra = [];
-		cells.forEach(function(cellData) {
-			var flag = false;
-			if (needInit)
-				flag = true;
-			if (left && cellData.ix === bord.right) {
-				cellData.ix = bord.left - 1;
-				flag = true;
-			}
-			if (right && cellData.ix === bord.left) {
-				cellData.ix = bord.right + 1;
-				flag = true;
-			}
-			if (up && cellData.iy === bord.down) {
-				cellData.iy = bord.up + 1;
-				flag = true;
-			}
-			if (down && cellData.iy === bord.up) {
-				cellData.iy = bord.down - 1;
-				flag = true;
-			}
-			if (flag && swap.indexOf(cellData) === -1)
-				extra.push(cellData)
+		var isVisible = function(cell) {
+			return Math.pow(cell.ix - originCell.ix, 2) +
+				Math.pow(cell.iy - originCell.iy, 2) <=
+				Math.pow(Math.floor(cellSideCount / 2), 2)
+		};
+
+		var exit = cells.filter(function(cell) {
+			return !isVisible(cell);
 		});
-		swap = extra.concat(swap);
 
-		var mvX = (right? 1: left? -1: 0);
-		var mvY = (up? 1: down? -1: 0);
-		bord.down += mvY;
-		bord.up += mvY;
-		bord.left += mvX;
-		bord.right += mvX;
-
-		if (swap.length > 0) {
-			lastPosition = { x: origin.x, y: origin.z };
+		if (!needInit) {
+			var lowx = Math.min.apply(Math, cells.map(function(cell) { return cell.ix}))
+			var highx = Math.max.apply(Math, cells.map(function(cell) { return cell.ix}))
+			var lowy = Math.min.apply(Math, cells.map(function(cell) { return cell.iy}))
+			var highy = Math.max.apply(Math, cells.map(function(cell) { return cell.iy}))
+		} else {
+			var lowx = 0;
+			var highx = cellSideCount;
+			var lowy = 0;
+			var highy = cellSideCount;
+		}
+		var enter = [];
+		for (var ix = lowx - 1; ix <= highx + 1; ix++) {
+			for (var iy = lowy - 1; iy <= highy + 1; iy++) {
+				var cand = {ix: ix, iy: iy};
+				if (isVisible(cand) && !cells.some(function(cell) {
+				  	  return cell.ix == ix && cell.iy == iy;
+				  }))
+					enter.push(cand);
+			}
+		}
+		if (exit.length > 0 || enter.length > 0) {
 			var start = Date.now();
-			while (swap.length > 0 && Date.now() - start < 16) {
-				var cellData = swap.pop()
-				cellData.mesh.position.x = cellData.ix * cellSize;
-				cellData.mesh.position.z = cellData.iy * cellSize;
-				display3d(cellData.geom, gen, {
-					x: cellData.ix * cellSize,
-					y: -cellData.iy * cellSize // why mirroring?
+			while (enter.length > 0 && Date.now() - start < 16) {
+				var newCell = enter.pop();
+				var oldCell = exit.pop() || mkCell();
+				oldCell.mesh.position.x = newCell.ix * cellSize;
+				oldCell.mesh.position.z = newCell.iy * cellSize;
+				oldCell.ix = newCell.ix;
+				oldCell.iy = newCell.iy;
+				display3d(oldCell.geom, gen, {
+					x: newCell.ix * cellSize,
+					y: -newCell.iy * cellSize // why mirroring?
 				});
 			}
 		}
-
 		needInit = false;
 		window.requestAnimationFrame(update);
 	}());
