@@ -23,11 +23,11 @@ var init3d = function(canvas) {
 	var camera = new THREE.PerspectiveCamera( 30, 1, 1, 10000 );
 	camera.position.z = 0;
 	camera.position.y = 200; //h
-	camera.position.x = 0;
+	camera.position.x = -400;
     camera.lookAt(new THREE.Vector3(0, 0, 0));
 	scene.camera = camera;
 
-	var light = new THREE.PointLight( 0xdfebff, 3 );
+	var light = new THREE.PointLight( 0xeeeeaa, 3 );
 	light.position.set( 4000, 800, 0 );
 	scene.add(light);
 
@@ -70,7 +70,8 @@ var addObject = function(gen, mat, scene, controls) {
 		return cell;
 	};
 
-	var origin = scene.controls.target;//camera.position;
+	var origin = scene.controls.target;
+		//scene.camera.position;
 	var pool = [];
 	(function update() {
 		var originCell = {

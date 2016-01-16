@@ -50,8 +50,7 @@ var makeFBM = function() {
     }
 };
 
-var makeSmoothNoise = function(w, h) {
-    var buff = white(new Float32Array(h * w));
+var makeSmoothNoise = function() {
 
     return function (srcX, srcY) {
         var fracX = ease.cubic(frac(srcX));

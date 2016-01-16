@@ -48,12 +48,12 @@
 		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
 	};
 
-	terragen.size(513, 513).init();
+	terragen.init();
 	var scene = init3d(mapEl);
 	var rawGen = terragen.init().generator(makeConfig());
 
 	var terrainGen = function(x, y) {
-		return (rawGen(x, y) -.02) * 20;
+		return (rawGen(x, y) -.02) * 40;
 	};
 	var terrainMat = new THREE.MeshLambertMaterial( {
 		color: 0xaabbcc } );

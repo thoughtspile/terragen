@@ -82,7 +82,5 @@ var diamondsqr = function(arr) {
 
 var octaveNoise = function(raw, noiseGenerator) {
 	var octNoise = octavize(noiseGenerator);
-	map2(raw, function(val, x, y) {
-		return octNoise(x, y);
-	});
+	map2(raw, function(val, x, y) {	return octNoise(x, y); });
 };

@@ -1,39 +1,10 @@
 var terragen = (function() {
-	var h = 0;
-	var w = 0;
-	var height = new Float32Array(0);
-	height.h = h;
-	height.w = w;
 	var context = null;
 	var smoothNoise = null;
 	var fbm = null;
-	var seed = 0;
 
-
-	// Noise generators
-
-	var perlin = function(raw) {
-		map2(raw, function(val, x, y) { return fbm(x, y); });
-	};
-
-
-	// Interface
 
 	var noiseGenerator = {
-		size: function (newW, newH) {
-			w = newW;
-			h = newH;
-			height = new Float32Array(w * h);
-			height.w = w;
-			height.h = h;
-			return this;
-		},
-		bind: function(mapEl) {
-			context = mapEl.getContext('2d');
-			mapEl.width = w;
-			mapEl.height = h;
-			return this;
-		},
 		run: function(ops) {
 			Math.seedrandom(seed);
 			fill(height, 0);
@@ -69,9 +40,9 @@ var terragen = (function() {
 			return fn;
 		},
 		init: function() {
-			smoothNoise = makeSmoothNoise(w, h);
-			fbm = makeFBM(w, h);
-				window.fbm = fbm
+			//smoothNoise = makeSmoothNoise(w, h);
+			fbm = makeFBM();
+			window.fbm = fbm
 			seed = Math.random();
 			return this;
 		}
