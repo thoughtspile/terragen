@@ -48,9 +48,8 @@
 		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
 	};
 
-	terragen.init();
 	var scene = init3d(mapEl);
-	var rawGen = terragen.init().generator(makeConfig());
+	var rawGen = terragen().generator(makeConfig());
 
 	var terrainGen = function(x, y) {
 		return (rawGen(x, y) -.02) * 40;
@@ -59,7 +58,10 @@
 		color: 0xaabbcc } );
 	addObject(terrainGen, terrainMat, scene, scene.controls);
 
-	var waterGen = rawGen;
+	var waterGen2 = terragen().generator(makeConfig());
+	var waterGen = function(x, y) {
+		return (waterGen2(x, y)) * 4;
+	};
 	var waterMat = new THREE.MeshPhongMaterial( {
 		specular: 0x555555,
 		shininess: 30,

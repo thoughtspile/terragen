@@ -51,7 +51,6 @@ var makeFBM = function() {
 };
 
 var makeSmoothNoise = function() {
-
     return function (srcX, srcY) {
         var fracX = ease.cubic(frac(srcX));
         var fracY = ease.cubic(frac(srcY));

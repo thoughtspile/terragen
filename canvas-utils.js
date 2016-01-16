@@ -1,20 +1,131 @@
 var cellSize = 50;
 var cellSideCount = 20;
+var cellWorldRadius = cellSideCount * cellSize / 2;
+var cellRadius = Math.floor(cellSideCount / 2);
+var cellRadius2 = Math.pow(cellRadius, 2);
 var cellDetail = 20;
 
-var display = function(raw, context, channel) {
-	var mapPixels = context.getImageData(0, 0, raw.w, raw.h);
-	normalize(raw);
-	for (var i = 0; i < raw.length; i++) {
-		var normH = Math.floor(255 * raw[i]);
-		var pos = 4 * i;
-		mapPixels.data[pos + channel] = normH;
-		//mapPixels.data[pos + 1] = normH;
-		//mapPixels.data[pos + 2] = normH;
-		mapPixels.data[pos + 3] = 255;
-	}
-	context.putImageData(mapPixels, 0, 0);
+var cell = function(ix, iy) {
+	return new Cell(ix, iy);
 };
+
+var Cell = function(ix, iy) {
+	this.ix = ix;
+	this.iy = iy;
+	this.mesh = null;
+	this.geom = null;
+}
+
+Cell.prototype.materialize = function(mat) {
+	var geom = new THREE.PlaneBufferGeometry(
+		cellSize, cellSize,
+		cellDetail, cellDetail);
+	geom.dynamic = true;
+	var mesh = new THREE.Mesh(geom, mat);
+	mesh.rotation.x = -Math.PI / 2;
+	this.geom = geom;
+	this.mesh = mesh;
+	return this;
+}
+
+var cellDist = function(a, b) {
+	return Math.pow(a.ix - b.ix, 2) + Math.pow(a.iy - b.iy, 2);
+};
+
+
+var cellManager = function(gen) {
+	return new CellManager(gen);
+};
+
+var CellManager = function(gen) {
+	this.gen = gen;
+
+	this.container = new THREE.Group();
+	this.container.position.x = -cellWorldRadius;
+	this.container.position.z = -cellWorldRadius;
+
+	this.cells = [];
+	this._origin = {};
+	this.originCell = cell();
+};
+
+CellManager.prototype.origin = function(pos) {
+	this._origin = pos;
+	this.originCell.ix = Math.floor(pos.x / cellSize) + cellRadius;
+	this.originCell.iy = Math.floor(pos.z / cellSize) + cellRadius;
+	return this;
+};
+
+CellManager.prototype.update = function() {
+	var exit = this.exit();
+	var originCell = this.originCell;
+	var enter = this.enter();
+
+	var cellDistCmp = function(a, b) {
+		return cellDist(a, originCell) <= cellDist(b, originCell);
+	};
+	enter.sort(cellDistCmp);
+	exit.sort(cellDistCmp).reverse();
+
+	if (exit.length > 0 || enter.length > 0) {
+		var start = Date.now();
+		while (enter.length > 0 && Date.now() - start < 16) {
+			var newCell = enter.pop();
+			var oldCell = exit.pop() || this.add();
+			oldCell.mesh.position.x = newCell.ix * cellSize;
+			oldCell.mesh.position.z = newCell.iy * cellSize;
+			oldCell.ix = newCell.ix;
+			oldCell.iy = newCell.iy;
+			display3d(oldCell.geom, this.gen, {
+				x: newCell.ix * cellSize,
+				y: -newCell.iy * cellSize // why mirroring?
+			});
+		}
+	}
+
+	return this;
+};
+
+CellManager.prototype.exit = function() {
+	return this.cells.filter(function(cell) {
+		return !this.visible(cell);
+	}.bind(this));
+};
+
+CellManager.prototype.enter = function() {
+	var originCell = this.originCell;
+
+	var lowx = originCell.ix - cellRadius;
+	var highx = originCell.ix + cellRadius;
+	var lowy = originCell.iy - cellRadius;
+	var highy = originCell.iy + cellRadius;
+
+	var enter = [];
+	for (var ix = lowx - 1; ix <= highx + 1; ix++) {
+		for (var iy = lowy - 1; iy <= highy + 1; iy++) {
+			var cand = cell(ix, iy);
+			if (this.visible(cand) && this.cells.every(function(cell) {
+					return cellDist(cand, cell) > 0;
+				})) {
+				enter.push(cand);
+			}
+		}
+	};
+	return enter;
+};
+
+CellManager.prototype.visible = function(cell) {
+	return cellDist(cell, this.originCell) <= cellRadius2
+};
+
+CellManager.prototype.add = function() {
+	// it needs mat, but looks cool this way
+	var newCell = cell().materialize();
+	this.cells.push(newCell);
+	this.container.add(newCell.mesh);
+	return newCell;
+};
+
 
 var init3d = function(canvas) {
 	var scene = new THREE.Scene();
@@ -51,84 +162,12 @@ var init3d = function(canvas) {
 }
 
 var addObject = function(gen, mat, scene, controls) {
-	var container = new THREE.Group();
-	container.position.x = -cellSideCount * cellSize / 2;
-	container.position.z = -cellSideCount * cellSize / 2;
-	scene.add(container);
+	var layerMgr = cellManager(gen);
+	scene.add(layerMgr.container);
 
-	var cells = [];
-	var mkCell = function() {
-		var geom = new THREE.PlaneBufferGeometry(
-			cellSize, cellSize,
-			cellDetail, cellDetail);
-		geom.dynamic = true;
-		var mesh = new THREE.Mesh(geom, mat);
-		mesh.rotation.x = -Math.PI / 2;
-		var cell = { geom: geom, mesh: mesh };
-		cells.push(cell);
-		container.add(mesh);
-		return cell;
-	};
-
-	var origin = scene.controls.target;
-		//scene.camera.position;
-	var pool = [];
 	(function update() {
-		var originCell = {
-			ix: Math.floor(origin.x / cellSize) + Math.floor(cellSideCount / 2),
-			iy: Math.floor(origin.z / cellSize) + Math.floor(cellSideCount / 2)
-		};
-
-		var cellDist = function(a, b) {
-			return Math.pow(a.ix - b.ix, 2) +
-				Math.pow(a.iy - b.iy, 2);
-		};
-
-		var isVisible = function(cell) {
-			return cellDist(cell, originCell) <=
-				Math.pow(Math.floor(cellSideCount / 2), 2)
-		};
-
-		var exit = cells.filter(function(cell) {
-			return !isVisible(cell);
-		});
-
-		var lowx = originCell.ix - Math.floor(cellSideCount / 2);
-		var highx = originCell.ix + Math.floor(cellSideCount / 2);
-		var lowy = originCell.iy - Math.floor(cellSideCount / 2);
-		var highy = originCell.iy + Math.floor(cellSideCount / 2);
-		var enter = [];
-		for (var ix = lowx - 1; ix <= highx + 1; ix++) {
-			for (var iy = lowy - 1; iy <= highy + 1; iy++) {
-				var cand = {ix: ix, iy: iy};
-				if (isVisible(cand) && !cells.some(function(cell) {
-				  	  return cell.ix == ix && cell.iy == iy;
-				  }))
-					enter.push(cand);
-			}
-		};
-
-		var cellDistCmp = function(a, b) {
-			return cellDist(a, originCell) <= cellDist(b, originCell);
-		};
-		enter.sort(cellDistCmp);
-		exit.sort(cellDistCmp).reverse();
-
-		if (exit.length > 0 || enter.length > 0) {
-			var start = Date.now();
-			while (enter.length > 0 && Date.now() - start < 16) {
-				var newCell = enter.pop();
-				var oldCell = exit.pop() || mkCell();
-				oldCell.mesh.position.x = newCell.ix * cellSize;
-				oldCell.mesh.position.z = newCell.iy * cellSize;
-				oldCell.ix = newCell.ix;
-				oldCell.iy = newCell.iy;
-				display3d(oldCell.geom, gen, {
-					x: newCell.ix * cellSize,
-					y: -newCell.iy * cellSize // why mirroring?
-				});
-			}
-		}
+		layerMgr.origin(scene.controls.target);
+		layerMgr.update();
 		window.requestAnimationFrame(update);
 	}());
 };
