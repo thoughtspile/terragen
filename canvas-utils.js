@@ -166,8 +166,8 @@ var addObject = function(gen, mat, scene, controls) {
 	scene.add(layerMgr.container);
 
 	(function update() {
-		layerMgr.origin(scene.controls.target);
-		layerMgr.update();
+		layerMgr.origin(scene.controls.target)
+			.update();
 		window.requestAnimationFrame(update);
 	}());
 };
