@@ -1,3 +1,6 @@
+var renderer = require('./canvas-utils');
+var terragen = require('./terragen');
+
 (function() {
 	var controls = {
 		mode: document.getElementById('mode'),
@@ -48,7 +51,7 @@
 		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
 	};
 
-	var scene = init3d(mapEl);
+	var scene = renderer.init3d(mapEl);
 	var rawGen = terragen().generator(makeConfig());
 
 	var terrainGen = function(x, y) {
@@ -56,7 +59,7 @@
 	};
 	var terrainMat = new THREE.MeshLambertMaterial( {
 		color: 0xaabbcc } );
-	addObject(terrainGen, terrainMat, scene, scene.controls);
+	renderer.addObject(terrainGen, terrainMat, scene, scene.controls);
 
 	var waterGen2 = terragen().generator(makeConfig());
 	var waterGen = function(x, y) {
@@ -66,7 +69,7 @@
 		specular: 0x555555,
 		shininess: 30,
 		color: 0x2255aa } );
-	addObject(waterGen, waterMat, scene, scene.controls);
+	renderer.addObject(waterGen, waterMat, scene, scene.controls);
 
 	var run = function() {
 		//display3d(terrain, terrainGen);

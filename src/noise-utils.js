@@ -1,3 +1,6 @@
+var utils = require('./utils');
+var num = require('./numerics');
+
 var makePerm2 = function (nPerm, target) {
     var perm = new Float32Array(2 * nPerm);
     for (var i = 0; i < perm.length; i++) {
@@ -5,7 +8,7 @@ var makePerm2 = function (nPerm, target) {
     }
 
     return function(x, y) {
-        return perm[mod(x + perm[mod(y, nPerm)], nPerm)] % target;
+        return perm[utils.mod(x + perm[utils.mod(y, nPerm)], nPerm)] % target;
     };
 };
 
@@ -33,17 +36,17 @@ var makeFBM = function() {
         var i21 = permute(x2, y1);
         var i22 = permute(x2, y2);
 
-        var s = dot2(dx, dy, gx[i11], gy[i11]);
-        var u = dot2(dx, dy - 1, gx[i12], gy[i12]);
-        var t = dot2(dx - 1, dy, gx[i21], gy[i21]);
-        var v = dot2(dx - 1, dy - 1, gx[i22], gy[i22]);
+        var s = num.dot2(dx, dy, gx[i11], gy[i11]);
+        var u = num.dot2(dx, dy - 1, gx[i12], gy[i12]);
+        var t = num.dot2(dx - 1, dy, gx[i21], gy[i21]);
+        var v = num.dot2(dx - 1, dy - 1, gx[i22], gy[i22]);
 
-        var easeX = ease.cubic(dx);
-        var easeY = ease.cubic(dy);
-        return lerp(lerp(s, t, easeX), lerp(u, v, easeX), easeY);
+        var easeX = num.ease.cubic(dx);
+        var easeY = num.ease.cubic(dy);
+        return num.lerp(num.lerp(s, t, easeX), num.lerp(u, v, easeX), easeY);
     }
 
-    var octBM = octavize(bm);
+    var octBM = utils.octavize(bm);
 
     return function(x, y) {
         return octBM(x, y);
@@ -52,17 +55,19 @@ var makeFBM = function() {
 
 var makeSmoothNoise = function() {
     return function (srcX, srcY) {
-        var fracX = ease.cubic(frac(srcX));
-        var fracY = ease.cubic(frac(srcY));
+        var fracX = num.ease.cubic(frac(srcX));
+        var fracY = num.ease.cubic(frac(srcY));
         var x1 = Math.floor(srcX);
         var y1 = Math.floor(srcY);
         var x2 = (x1 + w - 1) % w;
         var y2 = (y1 + h - 1) % h;
 
-        return lerp(
-            lerp(buff[x2 + y2 * w], buff[x1 + y2 * w], fracX),
-            lerp(buff[x2 + y1 * w], buff[x1 + y1 * w], fracX),
+        return num.lerp(
+            num.lerp(buff[x2 + y2 * w], buff[x1 + y2 * w], fracX),
+            num.lerp(buff[x2 + y1 * w], buff[x1 + y1 * w], fracX),
             fracY
         );
     };
 };
+
+module.exports = makeFBM;

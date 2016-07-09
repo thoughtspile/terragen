@@ -1,0 +1,23 @@
+{
+  "name": "terragen",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "c": "browserify src/run-index.js -o bundle.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thoughtspile/terragen.git"
+  },
+  "author": "vladimir klepov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/thoughtspile/terragen/issues"
+  },
+  "homepage": "https://github.com/thoughtspile/terragen#readme",
+  "dependencies": {
+    "three": "^0.78.0"
+  }
+}

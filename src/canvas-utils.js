@@ -182,3 +182,8 @@ var display3d = function(geom, gen, mv) {
 	geom.computeVertexNormals();
 	geom.attributes.normal.needsUpdate = true;
 }
+
+module.exports = {
+	init3d: init3d,
+	addObject: addObject
+};

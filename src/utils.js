@@ -1,7 +1,7 @@
 // array utils
 
 var dist = function(a, b) {
-	
+
 }
 
 var mod = function(base, by) {
@@ -80,3 +80,8 @@ var warpize = function(wrap, base, amt) {
 		return base(x + wrap(x, y) * amt, x + wrap(x + 4, y + 3) * amt);
 	}
 }
+
+module.exports = {
+	octavize: octavize,
+	mod: mod
+};

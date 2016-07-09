@@ -15,4 +15,10 @@ var lerp = function (start, end, amt) {
 
 var dot2 = function (a1, a2, b1, b2) {
 	return a1 * b1 + a2 * b2;
-}
+};
+
+module.exports = {
+	dot2: dot2,
+	ease: ease,
+	lerp: lerp
+};

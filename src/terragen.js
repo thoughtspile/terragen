@@ -1,3 +1,5 @@
+var makeFBM = require('./noise-utils');
+
 var terragen = function() {
 	var fbm = makeFBM();
 	var seed = Math.random();
@@ -15,3 +17,5 @@ var terragen = function() {
 		}
 	};
 };
+
+module.exports = terragen;
