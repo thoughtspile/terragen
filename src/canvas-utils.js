@@ -33,12 +33,13 @@ var cellDist = function(a, b) {
 };
 
 
-var cellManager = function(gen) {
-	return new CellManager(gen);
+var cellManager = function(gen, mat) {
+	return new CellManager(gen, mat);
 };
 
-var CellManager = function(gen) {
+var CellManager = function(gen, mat) {
 	this.gen = gen;
+	this.mat = mat;
 
 	this.container = new THREE.Group();
 	this.container.position.x = -cellWorldRadius;
@@ -86,6 +87,18 @@ CellManager.prototype.update = function() {
 	return this;
 };
 
+CellManager.prototype.regenerate = function (gen) {
+	this.gen = gen;
+	this.cells.forEach(cell => {
+		display3d(cell.geom, this.gen, {
+			x: cell.ix * cellSize,
+			y: -cell.iy * cellSize // why mirroring?
+		});
+	});
+
+	return this;
+}
+
 CellManager.prototype.exit = function() {
 	return this.cells.filter(function(cell) {
 		return !this.visible(cell);
@@ -120,7 +133,7 @@ CellManager.prototype.visible = function(cell) {
 
 CellManager.prototype.add = function() {
 	// it needs mat, but looks cool this way
-	var newCell = cell().materialize();
+	var newCell = cell().materialize(this.mat);
 	this.cells.push(newCell);
 	this.container.add(newCell.mesh);
 	return newCell;
@@ -162,7 +175,7 @@ var init3d = function(canvas) {
 }
 
 var addObject = function(gen, mat, scene, controls) {
-	var layerMgr = cellManager(gen);
+	var layerMgr = cellManager(gen, mat);
 	scene.add(layerMgr.container);
 
 	(function update() {
@@ -170,6 +183,8 @@ var addObject = function(gen, mat, scene, controls) {
 			.update();
 		window.requestAnimationFrame(update);
 	}());
+
+	return layerMgr;
 };
 
 var display3d = function(geom, gen, mv) {
@@ -185,5 +200,5 @@ var display3d = function(geom, gen, mv) {
 
 module.exports = {
 	init3d: init3d,
-	addObject: addObject
+	addObject: addObject,
 };

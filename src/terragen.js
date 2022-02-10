@@ -1,4 +1,5 @@
 var makeFBM = require('./noise-utils');
+var { warpize } = require('./utils');
 
 var terragen = function() {
 	var fbm = makeFBM();

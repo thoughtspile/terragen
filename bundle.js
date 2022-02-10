@@ -1,4 +1,4 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 var cellSize = 50;
 var cellSideCount = 20;
 var cellWorldRadius = cellSideCount * cellSize / 2;
@@ -34,12 +34,13 @@ var cellDist = function(a, b) {
 };
 
 
-var cellManager = function(gen) {
-	return new CellManager(gen);
+var cellManager = function(gen, mat) {
+	return new CellManager(gen, mat);
 };
 
-var CellManager = function(gen) {
+var CellManager = function(gen, mat) {
 	this.gen = gen;
+	this.mat = mat;
 
 	this.container = new THREE.Group();
 	this.container.position.x = -cellWorldRadius;
@@ -87,6 +88,18 @@ CellManager.prototype.update = function() {
 	return this;
 };
 
+CellManager.prototype.regenerate = function (gen) {
+	this.gen = gen;
+	this.cells.forEach(cell => {
+		display3d(cell.geom, this.gen, {
+			x: cell.ix * cellSize,
+			y: -cell.iy * cellSize // why mirroring?
+		});
+	});
+
+	return this;
+}
+
 CellManager.prototype.exit = function() {
 	return this.cells.filter(function(cell) {
 		return !this.visible(cell);
@@ -121,7 +134,7 @@ CellManager.prototype.visible = function(cell) {
 
 CellManager.prototype.add = function() {
 	// it needs mat, but looks cool this way
-	var newCell = cell().materialize();
+	var newCell = cell().materialize(this.mat);
 	this.cells.push(newCell);
 	this.container.add(newCell.mesh);
 	return newCell;
@@ -163,7 +176,7 @@ var init3d = function(canvas) {
 }
 
 var addObject = function(gen, mat, scene, controls) {
-	var layerMgr = cellManager(gen);
+	var layerMgr = cellManager(gen, mat);
 	scene.add(layerMgr.container);
 
 	(function update() {
@@ -171,6 +184,8 @@ var addObject = function(gen, mat, scene, controls) {
 			.update();
 		window.requestAnimationFrame(update);
 	}());
+
+	return layerMgr;
 };
 
 var display3d = function(geom, gen, mv) {
@@ -186,7 +201,7 @@ var display3d = function(geom, gen, mv) {
 
 module.exports = {
 	init3d: init3d,
-	addObject: addObject
+	addObject: addObject,
 };
 
 },{}],2:[function(require,module,exports){
@@ -338,47 +353,55 @@ var terragen = require('./terragen');
 		var config = makeConfig();
 
 		panels['octaveOpts'].style.display = 'none';
-		panels['flOpts'].style.display = (config.mode === 'fl'? 'visible': 'none');
-		panels['hrOpts'].style.display = (config.mode === 'hr'? 'visible': 'none');
-		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? 'visible': 'none';
-		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
+		panels['flOpts'].style.display = (config.mode === 'fl'? null: 'none');
+		panels['hrOpts'].style.display = (config.mode === 'hr'? null: 'none');
+		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? null: 'none';
+		panels['worleyOpts'].style.display = config.mode === 'wn'? null: 'none';
 	};
+
+	function terrainGen() {
+		var rawGen = terragen().generator(makeConfig());
+		return function(x, y) {
+			return (rawGen(x, y) -.02) * 40;
+		};
+	}
+
+	function waterGen() {
+		var waterGen2 = terragen().generator(makeConfig());
+		return function (x, y) {
+			return (waterGen2(x, y)) * 4;
+		};
+	}
 
 	var scene = renderer.init3d(mapEl);
-	var rawGen = terragen().generator(makeConfig());
-
-	var terrainGen = function(x, y) {
-		return (rawGen(x, y) -.02) * 40;
-	};
 	var terrainMat = new THREE.MeshLambertMaterial( {
-		color: 0xaabbcc } );
-	renderer.addObject(terrainGen, terrainMat, scene, scene.controls);
-
-	var waterGen2 = terragen().generator(makeConfig());
-	var waterGen = function(x, y) {
-		return (waterGen2(x, y)) * 4;
-	};
+		color: 0x88ab66 } );
+	var terrain = renderer.addObject(terrainGen(), terrainMat, scene, scene.controls);
 	var waterMat = new THREE.MeshPhongMaterial( {
 		specular: 0x555555,
 		shininess: 30,
 		color: 0x2255aa } );
-	renderer.addObject(waterGen, waterMat, scene, scene.controls);
+	var water = renderer.addObject(waterGen(), waterMat, scene, scene.controls);
 
 	var run = function() {
-		//display3d(terrain, terrainGen);
-		//display3d(water, waterGen);
+		terrain.regenerate(terrainGen());
+		water.regenerate(waterGen());
 	};
 
 	for (var key in controls) {
-		controls[key].addEventListener('change', updateView);
-		controls[key].addEventListener('change', run);
+		controls[key].addEventListener('change', () => {
+			updateView();
+			run();
+		});
 	}
 	runBtn.addEventListener('click', run);
 	run();
+	updateView();
 }());
 
 },{"./canvas-utils":1,"./terragen":5}],5:[function(require,module,exports){
 var makeFBM = require('./noise-utils');
+var { warpize } = require('./utils');
 
 var terragen = function() {
 	var fbm = makeFBM();
@@ -400,7 +423,7 @@ var terragen = function() {
 
 module.exports = terragen;
 
-},{"./noise-utils":2}],6:[function(require,module,exports){
+},{"./noise-utils":2,"./utils":6}],6:[function(require,module,exports){
 // array utils
 
 var dist = function(a, b) {
@@ -480,13 +503,14 @@ var octavize = function(fn) {
 
 var warpize = function(wrap, base, amt) {
 	return function(x, y) {
-		return base(x + wrap(x, y) * amt, x + wrap(x + 4, y + 3) * amt);
+		return base(x + wrap(x, y) * amt, y + wrap(x + 4, y + 3) * amt);
 	}
 }
 
 module.exports = {
 	octavize: octavize,
-	mod: mod
+	mod: mod,
+	warpize,
 };
 
 },{}]},{},[4]);

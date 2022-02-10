@@ -77,11 +77,12 @@ var octavize = function(fn) {
 
 var warpize = function(wrap, base, amt) {
 	return function(x, y) {
-		return base(x + wrap(x, y) * amt, x + wrap(x + 4, y + 3) * amt);
+		return base(x + wrap(x, y) * amt, y + wrap(x + 4, y + 3) * amt);
 	}
 }
 
 module.exports = {
 	octavize: octavize,
-	mod: mod
+	mod: mod,
+	warpize,
 };

@@ -45,41 +45,48 @@ var terragen = require('./terragen');
 		var config = makeConfig();
 
 		panels['octaveOpts'].style.display = 'none';
-		panels['flOpts'].style.display = (config.mode === 'fl'? 'visible': 'none');
-		panels['hrOpts'].style.display = (config.mode === 'hr'? 'visible': 'none');
-		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? 'visible': 'none';
-		panels['worleyOpts'].style.display = config.mode === 'wn'? 'visible': 'none';
+		panels['flOpts'].style.display = (config.mode === 'fl'? null: 'none');
+		panels['hrOpts'].style.display = (config.mode === 'hr'? null: 'none');
+		panels['perlinOpts'].style.display = ['pn', 'wpn', 'rpn'].indexOf(config.mode) !== -1? null: 'none';
+		panels['worleyOpts'].style.display = config.mode === 'wn'? null: 'none';
 	};
+
+	function terrainGen() {
+		var rawGen = terragen().generator(makeConfig());
+		return function(x, y) {
+			return (rawGen(x, y) -.02) * 40;
+		};
+	}
+
+	function waterGen() {
+		var waterGen2 = terragen().generator(makeConfig());
+		return function (x, y) {
+			return (waterGen2(x, y)) * 4;
+		};
+	}
 
 	var scene = renderer.init3d(mapEl);
-	var rawGen = terragen().generator(makeConfig());
-
-	var terrainGen = function(x, y) {
-		return (rawGen(x, y) -.02) * 40;
-	};
 	var terrainMat = new THREE.MeshLambertMaterial( {
-		color: 0xaabbcc } );
-	renderer.addObject(terrainGen, terrainMat, scene, scene.controls);
-
-	var waterGen2 = terragen().generator(makeConfig());
-	var waterGen = function(x, y) {
-		return (waterGen2(x, y)) * 4;
-	};
+		color: 0x88ab66 } );
+	var terrain = renderer.addObject(terrainGen(), terrainMat, scene, scene.controls);
 	var waterMat = new THREE.MeshPhongMaterial( {
 		specular: 0x555555,
 		shininess: 30,
 		color: 0x2255aa } );
-	renderer.addObject(waterGen, waterMat, scene, scene.controls);
+	var water = renderer.addObject(waterGen(), waterMat, scene, scene.controls);
 
 	var run = function() {
-		//display3d(terrain, terrainGen);
-		//display3d(water, waterGen);
+		terrain.regenerate(terrainGen());
+		water.regenerate(waterGen());
 	};
 
 	for (var key in controls) {
-		controls[key].addEventListener('change', updateView);
-		controls[key].addEventListener('change', run);
+		controls[key].addEventListener('change', () => {
+			updateView();
+			run();
+		});
 	}
 	runBtn.addEventListener('click', run);
 	run();
+	updateView();
 }());
